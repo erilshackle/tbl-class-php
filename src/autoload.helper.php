@@ -1,5 +1,7 @@
 <?php
 
+define('TBLCLASS_VERSION', "1.0.0");      // version
+
 // Definir apenas cores que serão usadas
 define('COLOR_RESET', "\033[0m");
 define('COLOR_RED', "\033[91m");      // Erros

@@ -316,7 +316,7 @@ HELP;
 
     private function version(): void
     {
-        $version = '1.0.0';
+        $version = TBLCLASS_VERSION;
 
         echo <<<VERSION
 \033[1mtbl-class \033[32mv{$version}\033[0m

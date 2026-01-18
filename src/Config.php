@@ -108,16 +108,17 @@ output:
   # PHP namespace for the generated Tbl class
   namespace: ""
 
+
   # ⚠ IMPORTANT
   # This strategy defines ALL generated constant names.
   # Changing it later WILL rename constants and MAY break code.
   #
   # Strategies:
-  # - full  → users, users__email, fk__posts__users
-  # - short → users, usr__email, fk__posts__users
-  # - abbr  → users, usr__email, fk__pst__usr
-  # - alias → users, u__email, fk__p__u
-  # - upper → USERS, USERS__EMAIL, FK__POSTS__USERS
+  # - full   → table, table__column, fk__table__references
+  # - short  → table, tbl__column,   fk__table__references
+  # - abbr   → table, tbl__column,   fk__tbl__ref
+  # - alias  → table, t__column,     fk__t__r
+  # - upper  → TABLE, TABLE__COLUMN, FK__TABLE__REFERENCES
   naming:
     strategy: full
     
