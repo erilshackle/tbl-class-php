@@ -28,6 +28,7 @@
 .vscode/
 *.log
 *.sqlite
+*.yml
 *.yaml
 /coverage/
 /logs/
