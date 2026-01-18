@@ -2,7 +2,7 @@
 
 ### Type-safe database schema constants para PHP
 
-[![Latest Version](https://img.shields.io/packagist/v/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![PHP Version](https://img.shields.io/packagist/php-v/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![License](https://img.shields.io/packagist/l/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![Downloads](https://img.shields.io/packagist/dt/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![Stars](https://img.shields.io/github/stars/erilshackle/php-tbl-class?style=social)](https://github.com/erilshackle/php-tbl-class)
+[![Latest Version](https://img.shields.io/packagist/v/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![PHP Version](https://img.shields.io/packagist/php-v/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![License](https://img.shields.io/packagist/l/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![Downloads](https://img.shields.io/packagist/dt/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![Stars](https://img.shields.io/github/stars/erilshackle/tbl-class-php?style=social)](https://github.com/erilshackle/tbl-class-php)
 
 ---
 
@@ -57,7 +57,7 @@ Isto garante:
 ## 📦 Instalação
 
 ```bash
-composer require erilshackle/php-tbl-class --dev
+composer require erilshackle/tbl-class-php --dev
 ```
 
 Recomendado como dependência de desenvolvimento.
