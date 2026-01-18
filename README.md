@@ -111,7 +111,7 @@ php vendor/bin/tbl-class --check
 
 ---
 
-## 📁 Exemplo de Código Gerado
+## 📁 Exemplo de Código Gerado 
 
 ```php
 <?php
@@ -122,27 +122,27 @@ final class Tbl
     public const users = 'users';
 
     /** `users`.`id` */
-    public const users_id = 'id';
+    public const users__id = 'id';
 
     /** `users`.`email` */
-    public const users_email = 'email';
+    public const users__email = 'email';
 
-    // ==================== table aliases ====================
-    /** alias: `u` */
-    public const as_users = 'users u';
-}
-
-final class TblFk
-{
     /** posts.user_id → users.id */
-    public const posts_users = 'user_id';
+    public const fk__posts__users = 'user_id';
+  
+    public const enum__users__active   = 'active';
+    public const enum__users__pending  = 'pending';
+    public const enum__users__inactive = 'inactive';
 }
 
-final class TblEnum
+final class Tbk
 {
-    public const users_status_active   = 'active';
-    public const users_status_pending  = 'pending';
-    public const users_status_inactive = 'inactive';
+  // futuramente dedicado aos PK, FK e UK
+}
+
+final class Tbe
+{
+  // futuramente - dedicado aos enums
 }
 ```
 
@@ -190,25 +190,33 @@ Changing the strategy is a breaking change and should be treated as a refactor.
 
 ```php
 Tbl::users
-Tbl::users_id
-TblFk::users_posts
+Tbl::users__id
+Tbl::fk__users__posts
 ```
 
 ### `short` 
 
 ```php
-Tbl::usr        // users
-Tbl::usr_id     // users_id
-TblFk::usr_pst  // users_posts
+Tbl::users
+Tbl::usr__id
+Tbl::fk__users__posts
+```
+
+### `abbr` 
+
+```php
+Tbl::users        // users
+Tbl::usr__id     // users_id
+Tbl::fk__usr_pst  // users_posts
 ```
 >
 
 ### `alias`
 
 ```php
-Tbl::u          // users
-Tbl::u_id       // users_id
-TblFk::u_p      // users_posts
+Tbl::users          // users
+Tbl::u__id       // users_id
+Tbl::fk__u__p      // users_posts
 ```
 
 ---
@@ -267,9 +275,9 @@ $sql = "
     WHERE " . Tbl::users_id . " = ?
 ";
 
-$status = TblEnum::users_status_active;
-$fk     = TblFk::posts_users;
-$alias  = Tbl::as_users;
+$status = Tbl::enum__users__active;
+$fk     = Tbl::fk__posts__users;
+$alias  = Tbl::as__users;
 ```
 
 ---

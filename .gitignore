@@ -29,6 +29,5 @@
 *.log
 *.sqlite
 *.yaml
-*.yml
 /coverage/
 /logs/
