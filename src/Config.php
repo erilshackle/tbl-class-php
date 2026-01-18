@@ -204,10 +204,19 @@ YAML;
         return preg_replace("/[tT]bl$/", "", $path) . '/' . "Tbl/";
     }
 
+    public function isPsr4()
+    {
+        return $this->get('output.namespace') !== null;
+    }
+
     public function getOutputNamespace(): string
     {
         $base = trim($this->get('output.namespace', ''), '\\');
-        return $base ? $base . '\\Tbl' : 'Tbl';
+        if ($base) {
+            $base = str_ends_with($base, "Tbl") ? $base : $base . '\\Tbl';
+            return $base;
+        }
+        return 'Tbl';
     }
 
     public function getTblFile()

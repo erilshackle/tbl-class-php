@@ -5,6 +5,7 @@ namespace Eril\TblClass\Cli;
 use Eril\TblClass\Config;
 use Eril\TblClass\GeneratorResult;
 use Eril\TblClass\Generators\TblClassGenerator;
+use Eril\TblClass\Introspection\GeneratedClassMetadata;
 use Eril\TblClass\Resolvers\ConnectionResolver;
 use Eril\TblClass\Schema\MySqlSchemaReader;
 use Eril\TblClass\Schema\PgSqlSchemaReader;
@@ -116,6 +117,14 @@ class CliCommand
         $driver = $this->config->getDriver();
         $dbName = $this->config->getDatabaseName();
         CliPrinter::line("→ Database: {$dbName} ({$driver})", 'blue');
+
+        if ($this->check) {
+            $hash = substr(GeneratedClassMetadata::extractSchemaHash($this->config->getTblFile()), 0, 16);
+            CliPrinter::line("→ SavedHash: {$hash}..", 'blue');
+        } else {
+            $naming = $this->config->getNamingStrategy();
+            CliPrinter::line("→ Strategy: {$naming}", 'blue');
+        }
     }
 
     private function connect(): void
@@ -218,32 +227,28 @@ class CliCommand
 
     private function printFinalInstructions(): void
     {
-        $namespace = $this->config->get('output.namespace', '');
-        $namespace = $namespace ? $this->config->getOutputNamespace() : '';
-        $outputFile = str_replace(getcwd() . '/', '', $this->config->getTblFile());
+        $namespace = $this->config->isPsr4() ? $this->config->getOutputNamespace() : '';
         $namespace = str_replace('\\', '\\\\', $namespace);
+        $outputFile = str_replace(getcwd() . '/', '', $this->config->getTblFile());
         CliPrinter::line("");
-        CliPrinter::line("Next steps:", 'bold');
+        CliPrinter::line("Next step:", 'bold');
 
+        CliPrinter::out("Add to your \033[1mcomposer.json", 'cyan');
+        CliPrinter::out(", then run \033[4mcomposer dump-autoload", 'cyan');
+        CliPrinter::line(":", 'cyan');
         if ($namespace) {
-            CliPrinter::line("Add to your composer.json:", 'cyan');
             CliPrinter::line("  \"autoload\": {");
             CliPrinter::line("    \"psr-4\": {");
             CliPrinter::line("      \"" . trim($namespace, '\\') . "\\\\\": \"" . dirname($outputFile) . "/\"", 'bold');
             CliPrinter::line("    }");
             CliPrinter::line("  }");
         } else {
-            CliPrinter::line("Add to your composer.json:", 'cyan');
             CliPrinter::line("  \"autoload\": {");
             CliPrinter::line("    \"files\": [");
             CliPrinter::line("      \"{$outputFile}\"", 'bold');
             CliPrinter::line("    ]");
             CliPrinter::line("  }");
         }
-
-        CliPrinter::line("");
-        CliPrinter::line("Then run:", 'cyan');
-        CliPrinter::line("  composer dump-autoload", 'bold');
         CliPrinter::line("");
     }
 
