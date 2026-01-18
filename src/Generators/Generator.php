@@ -43,7 +43,7 @@ abstract class Generator
 
     abstract protected function generateContent(
         array $tables,
-        array $foreignKeys = [],
+        array $relations = [],
         ?string $schemaHash = null
     );
 

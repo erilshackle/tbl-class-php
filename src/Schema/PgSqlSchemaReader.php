@@ -43,11 +43,17 @@ class PgSqlSchemaReader implements SchemaReaderInterface
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    public function getEnums(string $table): array
+    /**
+     * Returns enum values indexed by column name.
+     *
+     * [
+     *   'status' => ['active', 'pending', 'inactive']
+     * ]
+     */
+    public function getEnumColumns(string $table): array
     {
-        // PostgreSQL enums são tipos separados
         $stmt = $this->pdo->prepare("
-            SELECT c.column_name, t.typname as enum_type
+            SELECT c.column_name, t.typname AS enum_type
             FROM information_schema.columns c
             JOIN pg_type t ON c.udt_name = t.typname
             WHERE c.table_schema = 'public'
@@ -55,40 +61,39 @@ class PgSqlSchemaReader implements SchemaReaderInterface
               AND t.typtype = 'e'
         ");
         $stmt->execute([$table]);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $constants = [];
-        foreach ($rows as $row) {
-            $columnName = $row['column_name'];
-            $enumType = $row['enum_type'];
+        $result = [];
 
-            $valStmt = $this->pdo->prepare("SELECT enumlabel FROM pg_enum WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = ?)");
-            $valStmt->execute([$enumType]);
-            $values = $valStmt->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $valStmt = $this->pdo->prepare("
+                SELECT enumlabel
+                FROM pg_enum
+                WHERE enumtypid = (
+                    SELECT oid FROM pg_type WHERE typname = ?
+                )
+                ORDER BY enumsortorder
+            ");
+            $valStmt->execute([$row['enum_type']]);
 
-            foreach ($values as $value) {
-                $constantName = strtolower($columnName . '_' . $value);
-                $constantName = preg_replace('/[^a-z0-9_]/', '_', $constantName);
-                $constants[$constantName] = $value;
-            }
+            $result[$row['column_name']] = $valStmt->fetchAll(PDO::FETCH_COLUMN);
         }
 
-        return $constants;
+        return $result;
     }
 
     public function getForeignKeys(): array
     {
         $stmt = $this->pdo->prepare("
             SELECT
-                tc.table_name as from_table,
-                kcu.column_name as from_column,
-                ccu.table_name as to_table,
-                ccu.column_name as to_column
-            FROM information_schema.table_constraints AS tc
-            JOIN information_schema.key_column_usage AS kcu
+                tc.table_name  AS from_table,
+                kcu.column_name AS from_column,
+                ccu.table_name AS to_table,
+                ccu.column_name AS to_column
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
               ON tc.constraint_name = kcu.constraint_name
              AND tc.table_schema = kcu.table_schema
-            JOIN information_schema.constraint_column_usage AS ccu
+            JOIN information_schema.constraint_column_usage ccu
               ON ccu.constraint_name = tc.constraint_name
              AND ccu.table_schema = tc.table_schema
             WHERE tc.constraint_type = 'FOREIGN KEY'

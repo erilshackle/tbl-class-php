@@ -8,12 +8,12 @@ class SqliteSchemaReader implements SchemaReaderInterface
 {
     public function __construct(
         private PDO $pdo,
-        private string $dbPath
+        private string $dbName
     ) {}
 
     public function getDatabaseName(): string
     {
-        return basename($this->dbPath);
+        return $this->dbName;
     }
 
     public function getTables(): array
@@ -21,7 +21,8 @@ class SqliteSchemaReader implements SchemaReaderInterface
         $stmt = $this->pdo->query("
             SELECT name
             FROM sqlite_master
-            WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+            WHERE type = 'table'
+              AND name NOT LIKE 'sqlite_%'
             ORDER BY name
         ");
 
@@ -31,15 +32,38 @@ class SqliteSchemaReader implements SchemaReaderInterface
     public function getColumns(string $table): array
     {
         $stmt = $this->pdo->query("PRAGMA table_info('$table')");
-        $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        return array_column($columns, 'name');
+        return array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'name');
     }
 
-    public function getEnums(string $table): array
+    /**
+     * Extracts enum-like values from CHECK constraints.
+     *
+     * Example:
+     * status TEXT CHECK(status IN ('active','inactive'))
+     */
+    public function getEnumColumns(string $table): array
     {
-        // SQLite não tem enum nativo, retorna vazio
-        return [];
+        $stmt = $this->pdo->query("PRAGMA table_info('$table')");
+        $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $result = [];
+
+        foreach ($columns as $col) {
+            if (
+                isset($col['dflt_value']) &&
+                preg_match(
+                    "/CHECK\s*\\(\\s*{$col['name']}\\s+IN\\s*\\(([^)]+)\\)\\s*\\)/i",
+                    $col['dflt_value'],
+                    $matches
+                )
+            ) {
+                $values = str_getcsv($matches[1], ',', "'");
+                $result[$col['name']] = $values;
+            }
+        }
+
+        return $result;
     }
 
     public function getForeignKeys(): array
@@ -49,14 +73,12 @@ class SqliteSchemaReader implements SchemaReaderInterface
 
         foreach ($tables as $table) {
             $stmt = $this->pdo->query("PRAGMA foreign_key_list('$table')");
-            $list = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            foreach ($list as $fk) {
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
                 $fks[] = [
-                    'from_table' => $table,
-                    'from_column' => $fk['from'],
-                    'to_table' => $fk['table'],
-                    'to_column' => $fk['to'],
+                    'from_table'  => $table,
+                    'from_column' => $row['from'],
+                    'to_table'    => $row['table'],
+                    'to_column'   => $row['to'],
                 ];
             }
         }

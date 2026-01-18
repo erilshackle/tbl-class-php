@@ -44,45 +44,44 @@ class MySqlSchemaReader implements SchemaReaderInterface
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    public function getEnums(string $table): array
+    /**
+     * Returns enum values indexed by column name.
+     *
+     * [
+     *   'status' => ['active', 'pending', 'inactive']
+     * ]
+     */
+    public function getEnumColumns(string $table): array
     {
-        $sql = "SELECT 
-                    COLUMN_NAME,
-                    COLUMN_TYPE
-                FROM INFORMATION_SCHEMA.COLUMNS 
-                WHERE TABLE_SCHEMA = DATABASE() 
-                    AND TABLE_NAME = ? 
-                    AND DATA_TYPE = 'enum'";
+        $stmt = $this->pdo->prepare("
+            SELECT COLUMN_NAME, COLUMN_TYPE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = ?
+              AND TABLE_NAME = ?
+              AND DATA_TYPE = 'enum'
+        ");
+        $stmt->execute([$this->dbName, $table]);
 
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$table]);
-        $enums = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $result = [];
 
-        $constants = [];
-        foreach ($enums as $enum) {
-            $columnName = $enum['COLUMN_NAME'];
-            $enumString = $enum['COLUMN_TYPE'];
-            $enumString = substr($enumString, 5, -1);
-            $values = str_getcsv($enumString, ",", "'");
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $enumDef = substr($row['COLUMN_TYPE'], 5, -1); // enum(...)
+            $values  = str_getcsv($enumDef, ',', "'");
 
-            foreach ($values as $value) {
-                $constantName = strtolower($columnName . '_' . $value);
-                $constantName = preg_replace('/[^a-z0-9_]/', '_', $constantName);
-                $constants[$constantName] = $value;
-            }
+            $result[$row['COLUMN_NAME']] = $values;
         }
 
-        return $constants;
+        return $result;
     }
 
     public function getForeignKeys(): array
     {
         $stmt = $this->pdo->prepare("
             SELECT
-                TABLE_NAME as from_table,
-                COLUMN_NAME as from_column,
-                REFERENCED_TABLE_NAME as to_table,
-                REFERENCED_COLUMN_NAME as to_column
+                TABLE_NAME AS from_table,
+                COLUMN_NAME AS from_column,
+                REFERENCED_TABLE_NAME AS to_table,
+                REFERENCED_COLUMN_NAME AS to_column
             FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
             WHERE TABLE_SCHEMA = ?
               AND REFERENCED_TABLE_NAME IS NOT NULL
