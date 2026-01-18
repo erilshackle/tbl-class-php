@@ -102,13 +102,13 @@ HEADER;
             $tableConst = $this->naming->getTableConstName($table, true);
 
             $out .= "\n";
-            $out .= "    /** TABLE: `{$table}` */\n";
+            $out .= "    /** TABLE: `{$table}` */  ";
             $out .= "    public const {$tableConst} = '{$table}';\n";
 
             foreach ($columns as $column) {
                 $colConst = $this->naming->getColumnConstName($table, $column);
 
-                $out .= "    /** COLUMN: `{$table}.{$column}` */\n";
+                $out .= "    /** COLUMN: `{$table}.{$column}` */  ";
                 $out .= "    public const {$colConst} = '{$column}';\n";
             }
         }
@@ -124,7 +124,7 @@ HEADER;
                 );
 
                 $out .= "\n";
-                $out .= "    /** FK: `{$fk['from_table']}.{$fk['from_column']}` → `{$fk['to_table']}.{$fk['to_column']}` */\n";
+                $out .= "    /** FK: `{$fk['from_table']}.{$fk['from_column']}` → `{$fk['to_table']}.{$fk['to_column']}` */  ";
                 $out .= "    public const {$fkConst} = '{$fk['from_column']}';\n";
             }
         }
@@ -142,7 +142,7 @@ HEADER;
                 $enumConst = $this->naming->getEnumConstName($table, $value);
 
                 $out .= "\n";
-                $out .= "    /** ENUM: `{$table}.{$compound}` */\n";
+                $out .= "    /** ENUM: `{$table}.{$compound}` */  ";
                 $out .= "    public const {$enumConst} = '{$value}';\n";
             }
         }
