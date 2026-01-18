@@ -1,0 +1,9 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/../src/autoload.helper.php';
+
+use Eril\TblClass\Cli\CliCommand;
+
+$command = new CliCommand();
+$command->run($argv);

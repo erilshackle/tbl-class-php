@@ -1,0 +1,63 @@
+{
+    "name": "eril/tbl-class",
+    "description": "CLI tool that Generates stable PHP constants from your database schema to improve IDE autocomplete and avoid SQL typos.",
+    "homepage": "https://github.com/erilshackle/tbl-class-php",
+    "type": "library",
+    "keywords": [
+        "database-schema",
+        "database-constants",
+        "sql",
+        "raw-sql",
+        "schema",
+        "code-generation",
+        "php",
+        "cli",
+        "mysql",
+        "sqlite",
+        "psr-4",
+        "autocomplete",
+        "developer-experience"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Eril TS Carvalho",
+            "homepage": "https://github.com/erilshackle",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/erilshackle/tbl-class-php/issues",
+        "source": "https://github.com/erilshackle/tbl-class-php",
+        "docs": "https://github.com/erilshackle/tbl-class-php#readme",
+        "wiki": "https://github.com/erilshackle/tbl-class-php/wiki"
+    },
+    "require": {
+        "php": ">=8.1",
+        "ext-pdo": "*",
+        "symfony/yaml": "^6.0 || ^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Eril\\TblClass\\": "src/"
+        }
+    },
+    "bin": [
+        "bin/tbl-class"
+    ],
+     "scripts": {
+        "tbl:generate": "tbl-class",
+        "tbl:check": "tbl-class --check",
+        "tbl:sync": [
+            "@tbl:check",
+            "@tbl:generate"
+        ]
+    },
+    "suggest": {
+        "ext-yaml": "For faster YAML parsing",
+        "vlucas/phpdotenv": "Optional .env support for database configuration"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

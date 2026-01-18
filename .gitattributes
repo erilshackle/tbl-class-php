@@ -1,0 +1,16 @@
+# ------------------------------------
+# GitAttributes para Distribuição (Composer / Releases)
+# Arquivos a serem excluídos do zip/tarball do Composer
+# ------------------------------------
+
+# Ignorar o diretório de testes
+/tests/ export-ignore
+/docs/ export-ignore
+
+# Ignorar arquivos de configuração de desenvolvimento/ambiente
+.phpunit.xml.dist export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
+
+# O README.md é geralmente útil, mas a documentação interna pode ser ignorada
+/docs/ export-ignore
