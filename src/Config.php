@@ -66,7 +66,7 @@ class Config
 # Auto-generated on first run.
 # Delete this file to regenerate a clean template.
 # ------------------------------------------------------------
-# Doc: https://github.com/erilshackle/tbl-class-php/wiki
+# Doc https://github.com/erilshackle/tbl-class-php/wiki/config
 # ------------------------------------------------------------
 
 # Enable or disable Tbl class generation
