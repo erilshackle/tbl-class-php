@@ -4,13 +4,14 @@
 # ------------------------------------
 
 # Ignorar o diretório de testes
-.github/ export-ignore
 /tests/ export-ignore
+/.github/ export-ignore
 
 # Ignorar arquivos de configuração de desenvolvimento/ambiente
 .phpunit.xml.dist export-ignore
 .gitignore export-ignore
 .gitattributes export-ignore
+php.yml export-ignore
 
 # O README.md é geralmente útil, mas a documentação interna pode ser ignorada
 /docs/ export-ignore
