@@ -5,7 +5,7 @@
 
 # Ignorar o diretório de testes
 /tests/ export-ignore
-/.github/ export-ignore
+.github/ export-ignore
 
 # Ignorar arquivos de configuração de desenvolvimento/ambiente
 .phpunit.xml.dist export-ignore
