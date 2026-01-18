@@ -4,7 +4,7 @@ namespace Eril\TblClass\Cli;
 
 use Eril\TblClass\Config;
 use Eril\TblClass\GeneratorResult;
-use Eril\TblClass\Generators\TblClassGenerator;
+use Eril\TblClass\Generators\FileClassGenerator;
 use Eril\TblClass\Introspection\GeneratedClassMetadata;
 use Eril\TblClass\Resolvers\ConnectionResolver;
 use Eril\TblClass\Schema\MySqlSchemaReader;
@@ -156,7 +156,7 @@ class CliCommand
             CliPrinter::info("Generating database constants...");
         }
 
-        $generator = new TblClassGenerator(
+        $generator = new FileClassGenerator(
             $this->schema,
             $this->config,
             $this->check
