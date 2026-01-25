@@ -42,13 +42,18 @@ trait JoinHelperTrait
             \$e = constant("self::\$name");
             [\$fA, \$tA] = \$args + [null, null];
             if (!\$fA && !\$tA) return \$e;
-            [\$f, \$t] = explode('__', substr(\$name, 4), 2);
-            return str_replace([\$f . '.', \$t . '.'], [\$fA ? \$fA . '.' : \$f . '.', \$tA ? \$tA . '.' : \$t . '.'], \$e);
+            [\$left, \$right] = explode('=', \$e, 2);
+            [\$fromTable, \$fromCol] = array_map('trim', explode('.', \$left, 2));
+            [\$toTable, \$toCol]     = array_map('trim', explode('.', \$right, 2));
+            \$fromTable = \$fA ?? \$fromTable;
+            \$toTable   = \$tA ?? \$toTable;
+            return "{\$fromTable}.{\$fromCol} = {\$toTable}.{\$toCol}";
         }
-        if (defined("self::" . strtoupper(\$name))) {
+
+        if (defined("self::" . \$name)) {
             return (\$a = \$args[0] ?? null) ? "\$name AS \$a" : \$name;
         }
-        throw new \\BadMethodCallException("Undefined Tbl helper: \$name");
+        throw new \BadMethodCallException("Undefined Tbl helper: \$name");
     }
 
 PHP;
