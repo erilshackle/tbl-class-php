@@ -3,6 +3,7 @@
 namespace Eril\TblClass\Generators;
 
 use Eril\TblClass\Config;
+use Eril\TblClass\Generators\Traits\JoinHelperTrait;
 use Eril\TblClass\Resolvers\NamingResolver;
 use Eril\TblClass\Schema\SchemaReaderInterface;
 use RuntimeException;
@@ -19,6 +20,8 @@ use RuntimeException;
  */
 class FileClassGenerator extends Generator
 {
+    use JoinHelperTrait;
+
     private const SEPARATOR = " ";
     private NamingResolver $naming;
 
@@ -138,6 +141,11 @@ HEADER;
                 $out .= "    public const {$fkConst} = '{$fk['from_column']}';" . self::SEPARATOR;
             }
         }
+
+        // --------------------------------------------------
+        // Helpers
+        // --------------------------------------------------
+        $out .= $this->generateJoinHelper($foreignKeys);
 
         $out .= "\n}\n";
 

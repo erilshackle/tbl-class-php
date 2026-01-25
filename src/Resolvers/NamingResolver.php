@@ -26,6 +26,7 @@ class NamingResolver
             'strategy'  => 'full',
             'separator' => 'double',
             'fk_prefix' => 'fk__',
+            'join_prefix' => 'on__',
             'enum_prefix' => 'enum__',
         ], $naming);
 
@@ -129,6 +130,20 @@ class NamingResolver
         }
 
         return $this->applyCasing($this->config['fk_prefix'] . $from . $this->separator() . $to);
+    }
+
+    public function getOnJoinConstName(string $fromTable, string $toTable): string
+    {
+        $strategy = $this->config['strategy'] == 'short' ? 'full' : $this->config['strategy'];
+        $from = $this->resolveTablePart($fromTable, $strategy);
+        $to   = $this->resolveTablePart($toTable, $strategy);
+
+        if ($this->isConcatenated()) {
+            $from = $this->concat($from);
+            $to   = $this->concat($to);
+        }
+
+        return $this->applyCasing($this->config['join_prefix'] . $from . $this->separator() . $to);
     }
 
     // ==========================================================
