@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-01-25
+
+### Added
+- feat: Add JoinHelperTrait and enhance NamingResolver for join constant generation
+- chore: Update CHANGELOG.md for version 1.1.0 with added features, fixes, and changes
+
 ## [1.1.0] - 2026-01-18
 
 ### Added
