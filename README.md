@@ -228,7 +228,7 @@ composer dump-autoload
 
 All advanced topics, design decisions and future extensions are documented in the Wiki:
 
-📚 [https://github.com/erilshackle/tbl-class-php/wiki](https://github.com/erilshackle/tbl-class-php/wiki)
+📚 [Wiki](https://github.com/erilshackle/tbl-class-php/wiki)
 
 ---
 
@@ -246,5 +246,3 @@ It is a **compile-time schema contract for PHP applications**.
 ## License
 
 MIT © 2026 Eril TS Carvalho
-
-```
