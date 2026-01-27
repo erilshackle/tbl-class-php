@@ -35,10 +35,10 @@ This approach is fragile:
 from the database schema**:
 
 ```php
-Tbl::users
-Tbl::users__created_at
-Tbl::fk__users__roles
-Tbl::on__users__roles
+Tbl::users                // users
+Tbl::users__created_at    // created_at
+Tbl::fk__posts__users     // user_id 
+Tbl::on__contacts__users  // contacts.user_id = users.id
 ```
 
 Your application code becomes **schema-aware, explicit and refactor-safe**.
