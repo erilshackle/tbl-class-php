@@ -8,16 +8,17 @@
 [![Downloads](https://img.shields.io/packagist/dt/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class)
 [![Stars](https://img.shields.io/github/stars/erilshackle/tbl-class-php?style=social)](https://github.com/erilshackle/tbl-class-php)
 
-`tbl-class` generates a **single, immutable PHP entry-point** that maps your database schema
+`tbl-class` generates **immutable PHP entry-point classes** that map your database schema  
 (tables, columns and relations) into **compile-safe constants**.
 
-It creates a stable abstraction layer between your database and your application code.
+It provides a stable abstraction layer between your database and your application code,
+eliminating fragile string literals and runtime schema assumptions.
 
 ---
 
 ## Why tbl-class?
 
-Database-driven applications often rely on **string literals** for table names, column names and joins:
+Database-driven PHP applications commonly rely on raw strings:
 
 ```php
 SELECT * FROM users WHERE created_at > ?
@@ -26,199 +27,181 @@ SELECT * FROM users WHERE created_at > ?
 This approach is fragile:
 
 * typos are silent
-* refactors are dangerous
+* refactors are risky
 * schema changes break code at runtime
+* no compile-time guarantees
 
-`tbl-class` solves this by generating a **canonical reference layer**:
+`tbl-class` replaces string-based access with **generated constants derived directly
+from the database schema**:
 
 ```php
-Tbl::users               // "users"
-Tbl::users__created_at   // "created_at"
-Tbl::fk__users__roles    // "role_id"
+Tbl::users
+Tbl::users__created_at
+Tbl::fk__users__roles
+Tbl::on__users__roles
 ```
 
-Your application no longer depends on raw strings — it depends on **generated constants**.
-
----
-
-## Core Concepts
-
-### 1. Single Entry Point
-
-`tbl-class` generates **one final class** (`Tbl`) that exposes:
-
-* table names
-* column names
-* foreign key columns
-* JOIN helpers inferred from relations
-
-No models.
-No runtime reflection.
-No magic at execution time.
-
----
-
-### 2. Schema as Source of Truth
-
-The database schema is the **only authority**.
-
-* No annotations
-* No config duplication
-* No manual mapping
-
-Change the schema → regenerate → constants update.
-
----
-
-### 3. Deterministic Naming Strategy
-
-All constants are generated using a **naming strategy** defined once in `tblclass.yaml`.
-
-> ⚠ Changing the strategy after first generation **will rename constants**
-> and may break existing code.
-
-This design is intentional.
-
----
-
-### 4. Zero Runtime Cost
-
-The generated class contains:
-
-* only `public const`
-* no database access
-* no I/O
-* no runtime parsing
-
-It is loaded once and fully optimized by OPcache.
+Your application code becomes **schema-aware, explicit and refactor-safe**.
 
 ---
 
 ## Installation
 
 ```bash
-composer require eril/tbl-class
+composer require eril/tbl-class --dev
 ```
 
 ---
 
 ## Usage
 
-### First Run
+### First run
 
 ```bash
 tbl-class
 ```
 
-On first execution, a configuration file is created:
+On first execution, a configuration file is generated:
 
-```yaml
+```text
 tblclass.yaml
 ```
 
-Edit it, configure your database connection, and run the command again.
+**Edit** the file, configure your **database connection**, then run the command again.
 
 ---
 
-### Generate Constants
+### Generate schema constants
 
 ```bash
 tbl-class
 ```
 
-This will:
+This command:
 
-* connect to the database
-* read the schema
-* generate `Tbl.php` in the configured output directory
+* connects to the database
+* introspects the schema
+* generates PHP constants according to your configuration
 
 ---
 
-### Check for Schema Changes (CI-friendly)
+### Check for schema changes (CI-friendly)
 
 ```bash
 tbl-class --check
 ```
 
-This command:
+This mode:
 
-* does **not** regenerate files
-* compares the current schema hash with the last generated one
-* exits with non-zero code if changes are detected
+* does **not** generate files
+* compares the current database schema with the last generated version
+* exits with a non-zero status code if changes are detected
 
-Ideal for CI pipelines.
+Designed for CI pipelines and deployment safety checks.
+
+> It's not meant to be checked overtime, but only
 
 ---
 
-## Configuration Overview
+## Configuration
 
 All configuration lives in `tblclass.yaml`.
 
-High-level sections:
+A clean template is auto-generated on first run:
 
 ```yaml
-enabled: true
+# Enable or disable generation
+enabled: true       
 
+# Optional: include a PHP file before execution
 include: null
 
+# ------------------------------------------------------------
+# Database configuration
+# ------------------------------------------------------------
 database:
-  driver: mysql | pgsql | sqlite
+
+  # Optional custom connection resolver
+  # Must return a PDO instance
+  # Example: App\\Database::getConnection
   connection: null
 
+  driver: mysql            # mysql | pgsql | sqlite
+
+  # MySQL / PostgreSQL
+  host: env(DB_HOST)       # default: localhost
+  port: env(DB_PORT)       # default: 3306 | 5432
+  name: env(DB_NAME)       # database name
+  user: env(DB_USER)
+  password: env(DB_PASS)
+
+  # SQLite only
+  # path: env(DB_PATH)
+
+# ------------------------------------------------------------
+# Output configuration
+# ------------------------------------------------------------
 output:
+
+  # Output directory
   path: "./"
+
+  # PHP namespace for generated classes
   namespace: ""
+
+  # ⚠ IMPORTANT
+  # This strategy defines ALL generated constant names.
+  # Changing it later WILL rename constants and MAY break code.
+  #
+  # Strategies:
+  # - full   → table, table__column, fk__table__references
+  # - short  → table, tbl__column,   fk__table__references
+  # - abbr   → table, tbl__column,   fk__tbl__ref
+  # - alias  → table, t__column,     fk__t__r
+  # - upper  → TABLE, TABLE__COLUMN, FK__TABLE__REFERENCES
   naming:
     strategy: full
 ```
 
-Detailed configuration is documented in the project wiki.
+📘 **Full configuration reference:**
+[https://github.com/erilshackle/tbl-class-php/wiki/config](https://github.com/erilshackle/tbl-class-php/wiki/config)
 
 ---
 
 ## Generated Output
 
-The generated `Tbl` class provides:
+Depending on the enabled generators, `tbl-class` produces PHP classes containing:
 
-### Tables
+* table name constants
+* column name constants
+* foreign key references
+* JOIN expressions derived from relations
 
-```php
-Tbl::USERS
-```
-
-### Columns
-
-```php
-Tbl::USERS__EMAIL
-```
-
-### Foreign Keys
+Example usage:
 
 ```php
-Tbl::FK__USERS__ROLES
+Tbl::users                       // returns "users"
+Tbl::users(u)                    // returns "users AS u"
+Tbl::users__email                // returns "email"
+Tbl::fk__users__roles            // returns "role_id" or whataver you named it in DB
+Tbl::on__users__roles()          // returns "users.role_id = roles.id"
+Tbl::on__users__roles('u', 'r')  // // returns "u.role_id = r.id"
 ```
 
-### JOIN Helpers
-
-```php
-Tbl::on__users__roles()
-Tbl::on__users__roles('u', 'r')
-```
-
-JOIN helpers are derived automatically from foreign keys.
+All output is **deterministic**, **static**, and **runtime-free**.
 
 ---
 
 ## Autoloading
 
-Depending on your configuration, add **one** of the following to `composer.json`:
+After generation, add **one** of the following to your `composer.json`.
 
 ### PSR-4
 
 ```json
 "autoload": {
   "psr-4": {
-    "App\\Tbl\\": "path/to/output/"
+    "Tbl\\": "path/to/Tbl/"
   }
 }
 ```
@@ -241,26 +224,22 @@ composer dump-autoload
 
 ---
 
-## Design Guarantees
+## Documentation
 
-`tbl-class` guarantees that:
+All advanced topics, design decisions and future extensions are documented in the Wiki:
 
-* Generated files are deterministic
-* Regeneration is idempotent
-* No runtime dependency on database drivers
-* No reflection or parsing at runtime
-* No framework coupling
+📚 [https://github.com/erilshackle/tbl-class-php/wiki](https://github.com/erilshackle/tbl-class-php/wiki)
 
 ---
 
-## What tbl-class Is Not
+## What tbl-class is not
 
 * ❌ Not an ORM
-* ❌ Not a migration tool
 * ❌ Not a query builder
+* ❌ Not a migration tool
 * ❌ Not a runtime schema inspector
 
-It is a **compile-time schema contract**.
+It is a **compile-time schema contract for PHP applications**.
 
 ---
 
@@ -269,9 +248,3 @@ It is a **compile-time schema contract**.
 MIT © 2026 Eril TS Carvalho
 
 ```
-
----
-
-<div align="center">
-<strong>tbl::class — constantes type-safe para esquemas de base de dados em PHP.</strong>
-</div>
