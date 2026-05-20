@@ -58,7 +58,7 @@ composer require eril/tbl-class --dev
 ### First run
 
 ```bash
-tbl-class
+./vendor/bin/tbl-class
 ```
 
 On first execution, a configuration file is generated:
@@ -74,7 +74,7 @@ tblclass.yaml
 ### Generate schema constants
 
 ```bash
-tbl-class
+./vendor/bin/tbl-class
 ```
 
 This command:
@@ -88,7 +88,7 @@ This command:
 ### Check for schema changes (CI-friendly)
 
 ```bash
-tbl-class --check
+./vendor/bin/tbl-class --check
 ```
 
 This mode:
