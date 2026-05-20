@@ -181,7 +181,7 @@ Example usage:
 
 ```php
 Tbl::users                       // returns "users"
-Tbl::users(u)                    // returns "users AS u"
+Tbl::users('u')                    // returns "users AS u"
 Tbl::users__email                // returns "email"
 Tbl::fk__users__roles            // returns "role_id" or whataver you named it in DB
 Tbl::on__users__roles()          // returns "users.role_id = roles.id"
