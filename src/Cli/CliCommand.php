@@ -20,14 +20,23 @@ class CliCommand
     private Config $config;
     private PDO $pdo;
     private ?SchemaReaderInterface $schema = null;
-    private ?string $output = null;
-    private bool $forceGenerate = false;
+    private ?string $command = null;
     private bool $check = false;
 
     final public function run(array $argv): void
     {
         try {
             $this->parseArgs($argv);
+            if ($this->command === null) {
+                $this->listCommands();
+                return;
+            }
+
+            if ($this->command === 'init') {
+                $this->initialize();
+                return;
+            }
+
             $this->bootstrap();
             $this->connect();
             $result = $this->execute();
@@ -45,60 +54,82 @@ class CliCommand
             switch ($arg) {
                 case '--check':
                 case '-c':
+                    $this->setCommand('check');
                     $this->check = true;
                     break;
                 case '--generate':
-                    $this->forceGenerate = true;
+                    $this->setCommand('generate');
                     break;
                 case '--help':
                 case '-h':
+                case 'help':
                     $this->help();
                     exit(0);
                 case '--version':
                 case '-v':
                     $this->version();
                     exit(0);
+                case 'init':
+                case 'generate':
+                case 'check':
+                    $this->setCommand($arg);
+                    $this->check = $arg === 'check';
+                    break;
                 default:
-                    if ($arg[0] !== '-') {
-                        $this->output = $arg;
-                    } else {
-                        CliPrinter::error("Unknown option: {$arg}");
-                        CliPrinter::line("Use --help to see available options");
-                        exit(1);
-                    }
+                    $kind = str_starts_with($arg, '-') ? 'option' : 'command';
+                    CliPrinter::error("Unknown {$kind}: {$arg}");
+                    CliPrinter::line("Use --help to see available commands");
+                    exit(2);
             }
         }
     }
 
+    private function setCommand(string $command): void
+    {
+        if ($this->command !== null) {
+            CliPrinter::error("Only one command can be specified");
+            exit(2);
+        }
+
+        $this->command = $command;
+    }
+
+    private function initialize(): void
+    {
+        $configFile = getcwd() . '/tblclass.yaml';
+        if (file_exists($configFile)) {
+            CliPrinter::error("Config already exists: tblclass.yaml");
+            exit(2);
+        }
+
+        new Config($configFile);
+        CliPrinter::success("Config created: \033[1mtblclass.yaml");
+        CliPrinter::line("Edit the configuration, then run: tbl-class generate");
+    }
+
+    private function listCommands(): void
+    {
+            $version = TBLCLASS_VERSION;
+                CliPrinter::line("tbl-class v" . TBLCLASS_VERSION);
+                CliPrinter::line();
+                CliPrinter::line("Commands:");
+                CliPrinter::line("  init      Create the configuration file");
+                CliPrinter::line("  generate  Generate the Tbl class");
+                CliPrinter::line("  check     Check for schema changes");
+                CliPrinter::line("  help      Show detailed help");
+    }
+
     private function bootstrap(): void
     {
-        $this->config = new Config();
+        $configFile = getcwd() . '/tblclass.yaml';
+        if (!is_file($configFile)) {
+            throw new Exception("Config file not found. Run 'tbl-class init' first.");
+        }
+
+        $this->config = new Config($configFile);
         $configFile = basename($this->config->getConfigFile());
 
-        if ($this->config->isNew()) {
-            CliPrinter::success("Config created: \033[1m{$configFile}");
-
-            CliPrinter::line(str_repeat("-", 80));
-            CliPrinter::line("⚠ IMPORTANT – Naming Statregy", 'red');
-            CliPrinter::line("The naming strategy defined in tblclass.yaml affects ALL generated constants");
-            CliPrinter::line("Changing this strategy later WILL rename constants and MAY break existing code");
-            CliPrinter::line("Choose your strategy carefully before first use");
-            CliPrinter::line(str_repeat("-", 80));
-
-            CliPrinter::warn("Edit the configuration file and run the command again → set enabled: true");
-
-            exit(0);
-        }
-
         CliPrinter::info("Using config: \033[1m{$configFile}");
-
-        $enabled = $this->config->get('enabled', false);
-
-        if (!$enabled && !$this->forceGenerate && !$this->check) {
-            CliPrinter::warn("Generation of constants is currently DISABLED in your tblclass.yaml (`enabled: false`)");
-            CliPrinter::line("Open tblclass.yaml and SET [enabled: TRUE] to ENABLE generation", 'blue');
-            exit(0);
-        }
 
         $autoload = $this->config->getUserIncludingFile();
         if ($autoload) {
@@ -184,7 +215,7 @@ class CliCommand
         if ($result->isSchemaChanged()) {
             CliPrinter::errorIcon("Schema changed");
             CliPrinter::line("Database schema has been modified since last generation", 'yellow');
-            CliPrinter::line("Run the command without --check to regenerate", 'cyan');
+            CliPrinter::line("Run 'tbl-class generate' to regenerate", 'cyan');
             exit(1);
         }
 
@@ -289,19 +320,31 @@ class CliCommand
 \033[1mTBL-CLASS - Database Schema to PHP Constants\033[0m
 
 \033[1mUsage:\033[0m
-  tbl-class [options]
+    tbl-class <command>
+
+\033[1mCommands:\033[0m
+    init           Create tblclass.yaml
+    generate       Generate the Tbl class
+    check          Check for schema changes without generating
+    help           Display detailed help
 
 \033[1mOptions:\033[0m
-  --check, -c    Check for schema changes without generating
   --help, -h     Display this help message
   --version, -v  Display version information
 
 \033[1mExamples:\033[0m
-  Generate constants (output path is read from config):
-    tbl-class
+    Initialize configuration:
+        tbl-class init
+
+    Generate the Tbl class:
+        tbl-class generate
 
   Check for schema changes:
-    tbl-class --check
+        tbl-class check
+
+    Legacy flags remain available:
+        tbl-class --generate
+        tbl-class --check
 
   Get help:
     tbl-class --help
@@ -309,7 +352,7 @@ class CliCommand
 \033[1mExit codes:\033[0m
   0  Success
   1  Error / Schema changed
-  2  Initial generation required
+    2  Invalid command/config or initial generation required
 
 HELP;
     }

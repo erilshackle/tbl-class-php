@@ -46,8 +46,8 @@
         "bin/tbl-class"
     ],
      "scripts": {
-        "tbl:generate": "tbl-class",
-        "tbl:check": "tbl-class --check",
+        "tbl:generate": "tbl-class generate",
+        "tbl:check": "tbl-class check",
         "tbl:sync": [
             "@tbl:check",
             "@tbl:generate"
