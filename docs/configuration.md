@@ -1,5 +1,64 @@
 # Documentação Completa de Configuração
 
+## Verificação e geração segura
+
+```bash
+php vendor/bin/tbl-class generate
+php vendor/bin/tbl-class check
+php vendor/bin/tbl-class check --diff
+```
+
+O `check` compara o estado atual com um snapshot incluído no comentário do PHP
+gerado. O snapshot contém nomes de tabelas e colunas, relações, valores de enum
+fornecidos pelo leitor do banco, driver, namespace efetivo e opções de nomenclatura.
+Não inclui credenciais de ligação. A ordem de leitura de tabelas, colunas e FKs
+não causa diferenças; a ordem dos valores de enum é preservada.
+
+Exemplo de saída do `check --diff`:
+
+```text
++ users.phone
+- users.username
+~ enum users.status: ["active","pending"] -> ["active","pending","blocked"]
+~ output.naming.strategy: "full" -> "upper"
+```
+
+Ambos os comandos de verificação são apenas de leitura. `--diff` também funciona
+com `--check`, mas é rejeitado com `generate`, `init` ou sem comando.
+
+| Código de saída | Significado |
+| --- | --- |
+| `0` | Schema e configuração de geração atualizados |
+| `1` | Diferenças encontradas ou erro operacional; a mensagem distingue os casos |
+| `2` | Geração inicial necessária ou argumentos inválidos |
+
+Ficheiros antigos sem snapshot devem ser regenerados uma vez com `generate`.
+Até lá, `check` devolve `1` e `check --diff` explica que não há histórico detalhado.
+Se o ficheiro não existir, devolve `2`. O comando lê o destino da configuração
+atual; ao mudar `output.path`, gera primeiro no novo destino.
+
+A comparação cobre os metadados expostos pelos leitores atuais. Não é uma
+comparação completa de DDL: tipos, defaults, índices e nulabilidade não são
+verificados. No SQLite, a extração geral de enums a partir de constraints `CHECK`
+ainda não é suportada. O `check` não verifica edições manuais no corpo da classe.
+
+Na geração, caracteres inválidos nos identificadores PHP são substituídos por `_`.
+Nomes de constantes que começam por números recebem `_` como prefixo e o nome
+reservado `class` torna-se `_class`. Os valores conservam os nomes originais do banco.
+Constantes anteriormente válidas mantêm a nomenclatura existente.
+
+Os valores são serializados como literais PHP e os comentários são escapados.
+Namespaces inválidos e colisões de constantes interrompem a geração com erro,
+preservando o ficheiro anterior. Isto inclui duas FKs que produzam o mesmo nome;
+a convenção de nomenclatura das relações não foi alterada.
+
+A saída é escrita num ficheiro temporário no mesmo diretório, validada com
+`PHP_BINARY -n -l` e só então substitui o destino. É necessário ter `proc_open`
+disponível. Esta validação garante sintaxe PHP; identificadores SQL especiais
+continuam a exigir quoting adequado ao banco quando usados em consultas.
+
+Para executar os testes locais, usa `composer test` (requer `pdo_sqlite`).
+
 ## `tblclass.yaml`
 
 O ficheiro **`tblclass.yaml`** é o **coração do TBL-CLASS**.

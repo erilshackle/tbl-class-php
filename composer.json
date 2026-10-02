@@ -46,6 +46,7 @@
         "bin/tbl-class"
     ],
      "scripts": {
+        "test": "@php tests/run.php",
         "tbl:generate": "tbl-class generate",
         "tbl:check": "tbl-class check",
         "tbl:sync": [
