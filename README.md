@@ -88,6 +88,18 @@ php vendor/bin/tbl-class generate
 php vendor/bin/tbl-class check
 ```
 
+Para listar as diferenças desde a última geração:
+
+```bash
+php vendor/bin/tbl-class check --diff
+```
+
+O `check` compara tabelas, colunas, foreign keys, valores de enum disponibilizados
+pelo leitor do banco, driver, namespace e opções de nomenclatura. Não altera ficheiros.
+Ficheiros gerados por versões anteriores precisam de uma nova execução de `generate`
+para guardar o snapshot usado pelo diff. Consulta os detalhes em
+[verificação e geração segura](docs/configuration.md#verificação-e-geração-segura).
+
 ---
 
 ## 📁 Exemplo de Código Gerado 
