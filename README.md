@@ -69,7 +69,7 @@ Recomendado como dependência de desenvolvimento.
 ### 1. Criar configuração inicial
 
 ```bash
-php vendor/bin/tbl-class
+php vendor/bin/tbl-class init
 ```
 
 Gera o ficheiro `tblclass.yaml`.
@@ -92,7 +92,7 @@ database:
 ### 3. Gerar classes PHP
 
 ```bash
-php vendor/bin/tbl-class
+php vendor/bin/tbl-class generate
 ```
 
 É gerado o ficheiro `Tbl.php` contendo:
@@ -106,7 +106,7 @@ php vendor/bin/tbl-class
 ### 4. Verificar alterações no esquema
 
 ```bash
-php vendor/bin/tbl-class --check
+php vendor/bin/tbl-class check
 ```
 
 ---
@@ -296,7 +296,7 @@ $alias  = Tbl::as__users;
 
 **Schema alterado**
 
-* Reexecutar `tbl-class`
+* Reexecutar `tbl-class generate`
 
 ---
 

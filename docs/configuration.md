@@ -8,37 +8,32 @@ O ficheiro **`tblclass.yaml`** é o **coração do TBL-CLASS**.
 * Como a ferramenta se liga à base de dados
 * Onde escreve os ficheiros gerados
 * Como os nomes das constantes são construídos
-* Se a geração de constantes está **ativa ou desativada**
 
 Sem este ficheiro, o TBL-CLASS **não executa**.
 
 ---
-
 ## 📌 Criação do ficheiro de configuração
 
-Na **primeira execução** do comando:
+Cria o ficheiro explicitamente com:
 
 ```bash
-php vendor/bin/tbl-class
+php vendor/bin/tbl-class init
 ```
 
-se o ficheiro `tblclass.yaml` **não existir**, o TBL-CLASS irá:
+O comando cria um template YAML se `tblclass.yaml` ainda não existir. A inicialização não é interativa: edita o ficheiro para configurar a ligação e as opções de saída. Se o ficheiro já existir, `init` não o sobrescreve.
 
-1. Criar automaticamente um template limpo
-2. Informar que a configuração foi criada
-3. **Interromper a execução**
+Sem argumentos, `tbl-class` apenas mostra a ajuda. Usa `generate` para gerar a classe e `check` para verificar alterações sem gerar ficheiros.
 
-Isto é intencional, para garantir que **o utilizador configura conscientemente o projeto** antes de gerar código.
-
-> Se apagares o ficheiro, ele será recriado do zero na próxima execução.
+```bash
+php vendor/bin/tbl-class generate
+php vendor/bin/tbl-class check
+```
 
 ---
 
 ## Estrutura Geral do Ficheiro
 
 ```yaml
-enabled: true
-
 include: null
 
 database:
@@ -49,37 +44,6 @@ output:
 ```
 
 Cada secção é independente, mas todas são processadas na execução.
-O novo parâmetro **`enabled`** define se a geração de constantes está ativa ou desativada.
-
----
-
-# 🔹 Propriedade `enabled`
-
-```yaml
-enabled: false
-```
-
-### O que faz?
-
-* Controla se a geração de constantes deve ser executada
-* Valor padrão: `true` (ativado) - futuramente será `false`, de modo ao desenvolvedor explicitamente configurar permitir a geração, e principalmente a configuração do naming antes do uso, 
-
-### Comportamento:
-
-* Se `enabled: false`, o comando **não gera `Tbl.php`**
-* Se `enabled: true`, a geração funciona normalmente
-* Pode ser **forçado** usando a flag `--generate`
-
-### Flag `--generate`
-
-```bash
-php vendor/bin/tbl-class --generate
-```
-
-* Ignora `enabled: false` e força a geração de constantes
-* Útil para ambientes CI/CD ou testes temporários
-
-> Aviso: alterar `enabled` ou usar `--generate` pode sobrescrever arquivos existentes.
 
 ---
 
@@ -218,12 +182,4 @@ Define **como TODOS os nomes de constantes são gerados**
 > ⚠ **Aviso crítico**
 > Alterar `naming.strategy` **renomeia todas as constantes geradas** e **pode quebrar código existente**.
 > Defina a estratégia no início do projeto e evite mudá-la depois.
-
----
-
-# ⚠ Recomendações sobre `enabled`
-
-* `enabled: false` para desativar geração temporária
-* `enabled: true` para habilitar geração automática
-* `--generate` para ignorar `enabled` e gerar manualmente
-* Sempre verificar antes de rodar em produção
+> Verifica as referências existentes antes de executar `tbl-class generate`.
