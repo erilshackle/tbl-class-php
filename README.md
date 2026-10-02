@@ -2,55 +2,34 @@
 
 ### Type-safe database schema constants para PHP
 
-[![Latest Version](https://img.shields.io/packagist/v/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![PHP Version](https://img.shields.io/packagist/php-v/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![License](https://img.shields.io/packagist/l/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![Downloads](https://img.shields.io/packagist/dt/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class) [![Stars](https://img.shields.io/github/stars/erilshackle/tbl-class-php?style=social)](https://github.com/erilshackle/tbl-class-php)
+[![Latest Version](https://img.shields.io/packagist/v/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class)
+[![PHP Version](https://img.shields.io/packagist/php-v/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class)
+[![License](https://img.shields.io/packagist/l/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class)
+[![Downloads](https://img.shields.io/packagist/dt/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class)
+[![Stars](https://img.shields.io/github/stars/erilshackle/tbl-class-php?style=social)](https://github.com/erilshackle/tbl-class-php)
+
+`tbl-class` generates **immutable PHP entry-point classes** that map your database schema  
+(tables, columns and relations) into **compile-safe constants**.
+
+It provides a stable abstraction layer between your database and your application code,
+eliminating fragile string literals and runtime schema assumptions.
 
 ---
 
-## O que é o tbl-class?
+## Why tbl-class?
 
-**TBL-CLASS** é uma ferramenta **CLI para PHP** que gera **classes com constantes type-safe** directamente a partir do **esquema do seu banco de dados**.
-
-Permite referenciar **tabelas, colunas, foreign keys e valores enum** sem recorrer a strings mágicas, tornando o código:
-
-* mais seguro
-* mais legível
-* mais fácil de manter
-* resistente a alterações de schema
-
-> Ideal para projectos PHP modernos, APIs, frameworks customizados e ambientes CI/CD.
-
----
-
-## ✨ Funcionalidades Principais
-
-* Geração automática de constantes PHP a partir do schema
-* Constantes **type-safe e centralizadas**
-* Detecção de alterações no esquema via **hash**
-* Compatível com **MySQL, PostgreSQL e SQLite**
-* Classes organizadas: `Tbl`, `TblFk`, `TblEnum`
-* Interface CLI simples e previsível
-* Integração nativa com Composer
-
----
-
-## 📌 Convenção Importante
-
-> **Todas as constantes geradas são em lowercase**, por definição.
-
-Exemplo:
+Database-driven PHP applications commonly rely on raw strings:
 
 ```php
-Tbl::users
-Tbl::users_id
-TblFk::posts_users
-TblEnum::users_status_active
+SELECT * FROM users WHERE created_at > ?
 ```
 
-Isto garante:
+This approach is fragile:
 
-* consistência entre bases de dados
-* compatibilidade cross-platform
-* previsibilidade em SQL dinâmico
+* typos are silent
+* refactors are risky
+* schema changes break code at runtime
+* no compile-time guarantees
 
 ---
 
@@ -114,151 +93,188 @@ php vendor/bin/tbl-class check
 ## 📁 Exemplo de Código Gerado 
 
 ```php
-<?php
+Tbl::users                // users
+Tbl::users__created_at    // created_at
+Tbl::fk__posts__users     // user_id 
+Tbl::on__contacts__users  // contacts.user_id = users.id
+```
 
-final class Tbl
-{
-    /** table: users (alias: u) */
-    public const users = 'users';
+Your application code becomes **schema-aware, explicit and refactor-safe**.
 
-    /** `users`.`id` */
-    public const users__id = 'id';
+---
 
-    /** `users`.`email` */
-    public const users__email = 'email';
+## Installation
 
-    /** posts.user_id → users.id */
-    public const fk__posts__users = 'user_id';
-  
-    public const enum__users__active   = 'active';
-    public const enum__users__pending  = 'pending';
-    public const enum__users__inactive = 'inactive';
-}
-
-final class Tbk
-{
-  // futuramente dedicado aos PK, FK e UK
-}
-
-final class Tbe
-{
-  // futuramente - dedicado aos enums
-}
+```bash
+composer require eril/tbl-class --dev
 ```
 
 ---
 
-## 🔧 Configuração Completa (`tblclass.yaml`)
+## Usage
+
+### First run
+
+```bash
+./vendor/bin/tbl-class
+```
+
+On first execution, a configuration file is generated:
+
+```text
+tblclass.yaml
+```
+
+**Edit** the file, configure your **database connection**, then run the command again.
+
+---
+
+### Generate schema constants
+
+```bash
+./vendor/bin/tbl-class
+```
+
+This command:
+
+* connects to the database
+* introspects the schema
+* generates PHP constants according to your configuration
+
+---
+
+### Check for schema changes (CI-friendly)
+
+```bash
+./vendor/bin/tbl-class --check
+```
+
+This mode:
+
+* does **not** generate files
+* compares the current database schema with the last generated version
+* exits with a non-zero status code if changes are detected
+
+Designed for CI pipelines and deployment safety checks.
+
+> It's not meant to be checked overtime, but only
+
+---
+
+## Configuration
+
+All configuration lives in `tblclass.yaml`.
+
+A clean template is auto-generated on first run:
 
 ```yaml
+# Enable or disable generation
+enabled: true       
+
+# Optional: include a PHP file before execution
 include: null
 
+# ------------------------------------------------------------
+# Database configuration
+# ------------------------------------------------------------
 database:
-  connection: null
-  driver: mysql # mysql | pgsql | sqlite
 
-  host: env(DB_HOST)
-  port: env(DB_PORT)
-  name: env(DB_NAME)
+  # Optional custom connection resolver
+  # Must return a PDO instance
+  # Example: App\\Database::getConnection
+  connection: null
+
+  driver: mysql            # mysql | pgsql | sqlite
+
+  # MySQL / PostgreSQL
+  host: env(DB_HOST)       # default: localhost
+  port: env(DB_PORT)       # default: 3306 | 5432
+  name: env(DB_NAME)       # database name
   user: env(DB_USER)
   password: env(DB_PASS)
 
-  # sqlite
+  # SQLite only
   # path: env(DB_PATH)
 
+# ------------------------------------------------------------
+# Output configuration
+# ------------------------------------------------------------
 output:
+
+  # Output directory
   path: "./"
+
+  # PHP namespace for generated classes
   namespace: ""
 
+  # ⚠ IMPORTANT
+  # This strategy defines ALL generated constant names.
+  # Changing it later WILL rename constants and MAY break code.
+  #
+  # Strategies:
+  # - full   → table, table__column, fk__table__references
+  # - short  → table, tbl__column,   fk__table__references
+  # - abbr   → table, tbl__column,   fk__tbl__ref
+  # - alias  → table, t__column,     fk__t__r
+  # - upper  → TABLE, TABLE__COLUMN, FK__TABLE__REFERENCES
   naming:
-    strategy: full # full | short | alias
-
-    abbreviation:
-      max_length: 15
-      dictionary_lang: en # en | pt | es | all
-      dictionary_path: null
+    strategy: full
 ```
+
+📘 **Full configuration reference:**
+[https://github.com/erilshackle/tbl-class-php/wiki/config](https://github.com/erilshackle/tbl-class-php/wiki/config)
 
 ---
 
-## 🧠 Estratégias de Nomenclatura
+## Generated Output
 
-Naming strategy is global and applied consistently to tables, columns, foreign keys and enums.
-Changing the strategy is a breaking change and should be treated as a refactor.
+Depending on the enabled generators, `tbl-class` produces PHP classes containing:
 
-### `full` (default)
+* table name constants
+* column name constants
+* foreign key references
+* JOIN expressions derived from relations
 
-```php
-Tbl::users
-Tbl::users__id
-Tbl::fk__users__posts
-```
-
-### `short` 
+Example usage:
 
 ```php
-Tbl::users
-Tbl::usr__id
-Tbl::fk__users__posts
+Tbl::users                       // returns "users"
+Tbl::users('u')                    // returns "users AS u"
+Tbl::users__email                // returns "email"
+Tbl::fk__users__roles            // returns "role_id" or whataver you named it in DB
+Tbl::on__users__roles()          // returns "users.role_id = roles.id"
+Tbl::on__users__roles('u', 'r')  // // returns "u.role_id = r.id"
 ```
 
-### `abbr` 
-
-```php
-Tbl::users        // users
-Tbl::usr__id     // users_id
-Tbl::fk__usr_pst  // users_posts
-```
->
-
-### `alias`
-
-```php
-Tbl::users          // users
-Tbl::u__id       // users_id
-Tbl::fk__u__p      // users_posts
-```
+All output is **deterministic**, **static**, and **runtime-free**.
 
 ---
 
-## 🔍 Detecção de Alterações de Schema
+## Autoloading
 
-Cada geração inclui metadados:
+After generation, add **one** of the following to your `composer.json`.
 
-```php
-/**
- * @schema-hash md5:abc123...
- * @generated 2026-01-08 18:42:00
- */
-```
-
-Se o hash mudar, o schema foi alterado.
-
----
-
-## 🏗️ Integração com Composer
-
-### Sem namespace
+### PSR-4
 
 ```json
-{
-  "autoload": {
-    "files": ["Tbl.php"]
+"autoload": {
+  "psr-4": {
+    "Tbl\\": "path/to/Tbl/"
   }
 }
 ```
 
-### Com namespace
+### Files
 
 ```json
-{
-  "autoload": {
-    "psr-4": {
-      "App\\Database\\": "src/Database/"
-    }
-  }
+"autoload": {
+  "files": [
+    "path/to/Tbl.php"
+  ]
 }
 ```
+
+Then run:
 
 ```bash
 composer dump-autoload
@@ -266,25 +282,20 @@ composer dump-autoload
 
 ---
 
-## 📝 Exemplo de Utilização
+## Documentation
 
-```php
-$sql = "
-    SELECT *
-    FROM " . Tbl::users . "
-    WHERE " . Tbl::users_id . " = ?
-";
+All advanced topics, design decisions and future extensions are documented in the Wiki:
 
-$status = Tbl::enum__users__active;
-$fk     = Tbl::fk__posts__users;
-$alias  = Tbl::as__users;
-```
+📚 [Wiki](https://github.com/erilshackle/tbl-class-php/wiki)
 
 ---
 
-## 🐛 Resolução de Problemas
+## What tbl-class is not
 
-**Nenhuma tabela encontrada**
+* ❌ Not an ORM
+* ❌ Not a query builder
+* ❌ Not a migration tool
+* ❌ Not a runtime schema inspector
 
 * Verifique a base de dados configurada
 * Confirme que existem tabelas
@@ -300,19 +311,6 @@ $alias  = Tbl::as__users;
 
 ---
 
-## 📄 Licença
+## License
 
-MIT License — Eril TS Carvalho
-
----
-
-## 🤝 Contribuições
-
-Issues e pull requests são bem-vindos.
-Sugestões técnicas são apreciadas.
-
----
-
-<div align="center">
-<strong>tbl::class — constantes type-safe para esquemas de base de dados em PHP.</strong>
-</div>
+MIT © 2026 Eril TS Carvalho

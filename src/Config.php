@@ -69,9 +69,6 @@ class Config
 # Doc https://github.com/erilshackle/tbl-class-php/wiki/config
 # ------------------------------------------------------------
 
-# Enable or disable Tbl class generation
-enabled: true       
-
 # Optional: manually include a PHP file before execution
 include: null
 
