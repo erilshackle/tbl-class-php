@@ -31,7 +31,7 @@ class SqliteSchemaReader implements SchemaReaderInterface
 
     public function getColumns(string $table): array
     {
-        $stmt = $this->pdo->query("PRAGMA table_info('$table')");
+        $stmt = $this->pdo->query('PRAGMA table_info(' . $this->pdo->quote($table) . ')');
 
         return array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'name');
     }
@@ -44,7 +44,7 @@ class SqliteSchemaReader implements SchemaReaderInterface
      */
     public function getEnumColumns(string $table): array
     {
-        $stmt = $this->pdo->query("PRAGMA table_info('$table')");
+        $stmt = $this->pdo->query('PRAGMA table_info(' . $this->pdo->quote($table) . ')');
         $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $result = [];
@@ -53,7 +53,7 @@ class SqliteSchemaReader implements SchemaReaderInterface
             if (
                 isset($col['dflt_value']) &&
                 preg_match(
-                    "/CHECK\s*\\(\\s*{$col['name']}\\s+IN\\s*\\(([^)]+)\\)\\s*\\)/i",
+                    '/CHECK\s*\(\s*' . preg_quote($col['name'], '/') . '\s+IN\s*\(([^)]+)\)\s*\)/i',
                     $col['dflt_value'],
                     $matches
                 )
@@ -72,7 +72,7 @@ class SqliteSchemaReader implements SchemaReaderInterface
         $fks = [];
 
         foreach ($tables as $table) {
-            $stmt = $this->pdo->query("PRAGMA foreign_key_list('$table')");
+            $stmt = $this->pdo->query('PRAGMA foreign_key_list(' . $this->pdo->quote($table) . ')');
             foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
                 $fks[] = [
                     'from_table'  => $table,

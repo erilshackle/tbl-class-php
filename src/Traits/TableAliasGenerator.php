@@ -38,8 +38,11 @@ trait TableAliasGenerator
         $wordCount = count($parts);
 
         // Remove palavras vazias
-        $parts = array_filter($parts, fn($part) => !empty($part));
+        $parts = array_values(array_filter($parts, fn($part) => $part !== ''));
         $wordCount = count($parts);
+        if ($wordCount === 0) {
+            return 'tbl';
+        }
 
         // Para 1 palavra: tenta 1 letra, depois 2, depois 3
         if ($wordCount === 1) {

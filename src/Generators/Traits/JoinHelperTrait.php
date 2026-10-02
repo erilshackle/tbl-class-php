@@ -23,8 +23,7 @@ trait JoinHelperTrait
             // $constName = "on__{$fkConst}";
             $expr      = "{$fk['from_table']}.{$fk['from_column']} = {$fk['to_table']}.{$fk['to_column']}";
 
-            $out .= "    /** JOIN ON: `{$fk['from_table']}` → `{$fk['to_table']}` */";
-            $out .= "    public const {$constName} = '{$expr}';\n";
+            $out .= $this->php->constant($constName, $expr, "JOIN ON: {$expr}");
         }
 
         $out .= $this->generateCallStatic();

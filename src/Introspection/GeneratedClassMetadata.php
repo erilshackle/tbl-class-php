@@ -4,6 +4,35 @@ namespace Eril\TblClass\Introspection;
 
 final class GeneratedClassMetadata
 {
+    public static function extractSnapshot(string $file): ?array
+    {
+        if (!is_file($file)) {
+            return null;
+        }
+        $content = file_get_contents($file);
+        if ($content === false) {
+            throw new \RuntimeException("Cannot read generated file: {$file}");
+        }
+        if (!preg_match('/^ \* @generation-snapshot ([A-Za-z0-9+\/=]+)$/m', str_replace("\r\n", "\n", $content), $match)) {
+            return null;
+        }
+        $decoded = base64_decode($match[1], true);
+        $data = $decoded === false ? null : json_decode($decoded, true);
+        if (!is_array($data) || ($data['version'] ?? null) !== 1
+            || !is_string($data['database'] ?? null)
+            || !is_array($data['tables'] ?? null)
+            || !is_array($data['foreignKeys'] ?? null)
+            || !is_array($data['generation'] ?? null)) {
+            throw new \RuntimeException('Invalid generation snapshot. Run tbl-class generate.');
+        }
+        foreach ($data['tables'] as $table) {
+            if (!is_array($table) || !is_array($table['columns'] ?? null) || !is_array($table['enums'] ?? null)) {
+                throw new \RuntimeException('Invalid table snapshot. Run tbl-class generate.');
+            }
+        }
+        return $data;
+    }
+
     public static function extractSchemaHash(string $file): ?string
     {
         return self::extractTag($file, 'schema-hash');

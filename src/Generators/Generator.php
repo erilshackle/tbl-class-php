@@ -7,11 +7,14 @@ use Eril\TblClass\Config;
 use Eril\TblClass\GeneratorResult;
 use Eril\TblClass\Introspection\GeneratedClassMetadata;
 use Eril\TblClass\Introspection\SchemaHasher;
+use Eril\TblClass\Introspection\SchemaDiff;
+use Eril\TblClass\Resolvers\NamingResolver;
 use Eril\TblClass\Schema\SchemaReaderInterface;
 use RuntimeException;
 
 abstract class Generator
 {
+    protected array $snapshot = [];
     public function __construct(
         protected SchemaReaderInterface $schema,
         protected Config $config,
@@ -22,12 +25,14 @@ abstract class Generator
     {
         try {
             $tables = $this->schema->getTables();
-            if (empty($tables)) {
+            sort($tables, SORT_STRING);
+            if (empty($tables) && !$this->checkMode) {
                 return GeneratorResult::error('No tables found in database');
             }
 
             $foreignKeys = $this->schema->getForeignKeys();
-            $schemaData = $this->buildSchemaHashData($tables, $foreignKeys);
+            sort($foreignKeys);
+            $schemaData = $this->snapshot = $this->buildSchemaHashData($tables, $foreignKeys);
             $currentHash = SchemaHasher::hash($schemaData);
 
             if ($this->checkMode) {
@@ -59,16 +64,23 @@ abstract class Generator
     protected function buildSchemaHashData(array $tables, array $foreignKeys): array
     {
         $schemaData = [
+            'version' => 1,
             'database' => $this->schema->getDatabaseName(),
             'tables' => [],
-            'foreignKeys' => $foreignKeys
+            'foreignKeys' => $foreignKeys,
+            'generation' => [
+                'database.driver' => $this->config->getDriver(),
+                'output.namespace' => $this->config->getOutputNamespace(),
+                'output.naming' => (new NamingResolver($this->config->getNamingConfig()))->getProfile(),
+            ],
         ];
 
         foreach ($tables as $table) {
             $columns = $this->schema->getColumns($table);
-            if (!empty($columns)) {
-                $schemaData['tables'][$table] = $columns;
-            }
+            sort($columns, SORT_STRING);
+            $enums = $this->schema->getEnumColumns($table);
+            ksort($enums);
+            $schemaData['tables'][$table] = ['columns' => $columns, 'enums' => $enums];
         }
 
         ksort($schemaData['tables']);
@@ -86,8 +98,18 @@ abstract class Generator
             return GeneratorResult::initialRequired();
         }
 
+        $savedSnapshot = GeneratedClassMetadata::extractSnapshot($outputFile);
+        if ($savedSnapshot === null) {
+            return GeneratorResult::schemaChanged([
+                'diff' => ['Previous generation has no snapshot. Run tbl-class generate once to enable detailed comparisons.'],
+            ]);
+        }
+        if (SchemaHasher::hash($savedSnapshot) !== $savedHash) {
+            return GeneratorResult::error('Generation snapshot does not match its hash. Run tbl-class generate.');
+        }
+
         if ($savedHash !== $currentHash) {
-            return GeneratorResult::schemaChanged();
+            return GeneratorResult::schemaChanged(['diff' => SchemaDiff::compare($savedSnapshot, $this->snapshot)]);
         }
 
         return GeneratorResult::success('Schema is up to date');

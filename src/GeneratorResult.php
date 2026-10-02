@@ -32,7 +32,7 @@ class GeneratorResult
 
     public function isSchemaChanged(): bool
     {
-        return $this->code === 1;
+        return $this->code === 1 && ($this->data['schemaChanged'] ?? false);
     }
 
     public function isInitialRequired(): bool
@@ -45,9 +45,9 @@ class GeneratorResult
         return new self(0, $message, $data);
     }
 
-    public static function schemaChanged(): self
+    public static function schemaChanged(array $data = []): self
     {
-        return new self(1, 'Schema changed');
+        return new self(1, 'Schema or generation configuration changed', ['schemaChanged' => true] + $data);
     }
 
     public static function initialRequired(): self

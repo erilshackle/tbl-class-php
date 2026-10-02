@@ -22,8 +22,8 @@ class FileClassGenerator extends Generator
 {
     use JoinHelperTrait;
 
-    private const SEPARATOR = " ";
     private NamingResolver $naming;
+    private PhpOutput $php;
 
     public function __construct(
         SchemaReaderInterface $schema,
@@ -43,17 +43,21 @@ class FileClassGenerator extends Generator
         ?string $schemaHash = null
     ): void {
         $this->naming->reset();
+        $this->php = new PhpOutput();
 
         $namespace = $this->config->getOutputNamespace();
         $tblFile   = $this->config->getTblFile();
+        foreach (explode('\\', $namespace) as $part) {
+            if ($part === '' || PhpOutput::identifier($part) !== $part) {
+                throw new RuntimeException('Invalid output namespace: ' . $namespace);
+            }
+        }
 
         $content  = "<?php\n\nnamespace {$namespace};\n\n";
         $content .= $this->generateHeader($schemaHash);
         $content .= $this->generateTblClass($tables, $relations);
 
-        if (file_put_contents($tblFile, $content) === false) {
-            throw new RuntimeException("Failed to write Tbl file: {$tblFile}");
-        }
+        PhpOutput::write($tblFile, $content);
     }
 
     /**
@@ -62,7 +66,8 @@ class FileClassGenerator extends Generator
     private function generateHeader(?string $schemaHash): string
     {
         $time   = date('Y-m-d H:i:s');
-        $dbName = $this->schema->getDatabaseName();
+        $dbName = PhpOutput::comment($this->schema->getDatabaseName());
+        $snapshot = base64_encode(json_encode($this->snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
 
         return <<<HEADER
 /**
@@ -74,6 +79,7 @@ class FileClassGenerator extends Generator
  * - foreign keys
  *
  * @schema-hash md5:{$schemaHash}
+ * @generation-snapshot {$snapshot}
  * @generated   {$time}
  *
  * ⚠ AUTO-GENERATED FILE
@@ -94,18 +100,17 @@ HEADER;
         // Tables & Columns
         // --------------------------------------------------
         foreach ($tables as $table) {
-            $columns = $this->schema->getColumns($table);
+            $columns = $this->snapshot['tables'][$table]['columns'];
             if (empty($columns)) {
                 continue;
             }
 
-            $columnEnums = $this->schema->getEnumColumns($table);
+            $columnEnums = $this->snapshot['tables'][$table]['enums'];
 
             $tableConst = $this->naming->getTableConstName($table, true);
 
             $out .= "\n";
-            $out .= "    /** TABLE: `{$table}` */" . self::SEPARATOR;
-            $out .= "    public const {$tableConst} = '{$table}';\n\n";
+            $out .= $this->php->constant($tableConst, $table, "TABLE: `{$table}`");
 
             foreach ($columns as $column) {
                 $colConst = $this->naming->getColumnConstName($table, $column);
@@ -117,12 +122,12 @@ HEADER;
                         $columnEnums[$column]
                     ));
 
-                    $out .= "    /** ENUM {$column} → {$values} */" . self::SEPARATOR;
+                    $description = "ENUM {$table}.{$column}: {$values}";
                 } else {
-                    $out .= "    /** COLUMN `{$column}` */" . self::SEPARATOR;
+                    $description = "COLUMN `{$table}.{$column}`";
                 }
 
-                $out .= "    public const {$colConst} = '{$column}';\n"  . self::SEPARATOR;
+                $out .= $this->php->constant($colConst, $column, $description);
             }
         }
 
@@ -137,8 +142,8 @@ HEADER;
                 );
 
                 $out .= "\n";
-                $out .= "    /** FK: `{$fk['from_table']}.{$fk['from_column']}` → `{$fk['to_table']}.{$fk['to_column']}` */" . self::SEPARATOR;
-                $out .= "    public const {$fkConst} = '{$fk['from_column']}';" . self::SEPARATOR;
+                $out .= $this->php->constant($fkConst, $fk['from_column'],
+                    "FK: {$fk['from_table']}.{$fk['from_column']} -> {$fk['to_table']}.{$fk['to_column']}");
             }
         }
 

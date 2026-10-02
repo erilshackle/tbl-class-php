@@ -3,6 +3,7 @@
 namespace Eril\TblClass\Resolvers;
 
 use Eril\TblClass\Traits\TableAliasGenerator;
+use Eril\TblClass\Generators\PhpOutput;
 
 class NamingResolver
 {
@@ -203,6 +204,7 @@ class NamingResolver
 
     private function applyCasing(string $name): string
     {
+        $name = PhpOutput::identifier($name);
         return $this->config['strategy'] === 'upper' ? strtoupper($name) : strtolower($name);
     }
 

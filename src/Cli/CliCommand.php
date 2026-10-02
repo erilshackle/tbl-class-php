@@ -22,6 +22,7 @@ class CliCommand
     private ?SchemaReaderInterface $schema = null;
     private ?string $command = null;
     private bool $check = false;
+    private bool $diff = false;
 
     final public function run(array $argv): void
     {
@@ -41,7 +42,7 @@ class CliCommand
             $this->connect();
             $result = $this->execute();
             $this->handleResult($result);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->handleException($e);
         }
     }
@@ -52,6 +53,9 @@ class CliCommand
             if ($i === 0) continue;
 
             switch ($arg) {
+                case '--diff':
+                    $this->diff = true;
+                    break;
                 case '--check':
                 case '-c':
                     $this->setCommand('check');
@@ -81,6 +85,10 @@ class CliCommand
                     CliPrinter::line("Use --help to see available commands");
                     exit(2);
             }
+        }
+        if ($this->diff && $this->command !== 'check') {
+            CliPrinter::error('--diff is only available with check');
+            exit(2);
         }
     }
 
@@ -150,7 +158,7 @@ class CliCommand
         CliPrinter::line("→ Database: {$dbName} ({$driver})", 'blue');
 
         if ($this->check) {
-            $hash = substr(GeneratedClassMetadata::extractSchemaHash($this->config->getTblFile()), 0, 16);
+            $hash = substr(GeneratedClassMetadata::extractSchemaHash($this->config->getTblFile()) ?? '', 0, 16);
             CliPrinter::line("→ SavedHash: {$hash}..", 'blue');
         } else {
             $naming = $this->config->getNamingStrategy();
@@ -213,8 +221,12 @@ class CliCommand
         }
 
         if ($result->isSchemaChanged()) {
-            CliPrinter::errorIcon("Schema changed");
-            CliPrinter::line("Database schema has been modified since last generation", 'yellow');
+            CliPrinter::errorIcon($result->getMessage());
+            if ($this->diff) {
+                foreach ($result->getData()['diff'] ?? [] as $change) {
+                    CliPrinter::line($change);
+                }
+            }
             CliPrinter::line("Run 'tbl-class generate' to regenerate", 'cyan');
             exit(1);
         }
@@ -222,7 +234,7 @@ class CliCommand
         if ($result->isInitialRequired()) {
             CliPrinter::warn("Initial generation required");
             CliPrinter::line("No previously generated file found", 'cyan');
-            CliPrinter::line("Run the command without --check to generate", 'cyan');
+            CliPrinter::line("Run 'tbl-class generate' to generate", 'cyan');
             exit(2);
         }
 
@@ -283,7 +295,7 @@ class CliCommand
         CliPrinter::line("");
     }
 
-    private function handleException(Exception $e): void
+    private function handleException(Throwable $e): void
     {
         $message = $e->getMessage();
 
@@ -331,6 +343,7 @@ class CliCommand
 \033[1mOptions:\033[0m
   --help, -h     Display this help message
   --version, -v  Display version information
+  --diff         Show schema/configuration differences (check only)
 
 \033[1mExamples:\033[0m
     Initialize configuration:
@@ -341,6 +354,7 @@ class CliCommand
 
   Check for schema changes:
         tbl-class check
+        tbl-class check --diff
 
     Legacy flags remain available:
         tbl-class --generate
