@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - Generator version participates in the generation signature. Uppercase helper names preserve original SQL identifiers.
 
 ### Added
+- PHPUnit 10.5 test suite with isolated fixtures and eight output-matrix data-provider scenarios, run through `composer test`.
 - `independence <directory>` replaces constants and literal helper calls using PHP syntax analysis.
 - `--dry-run` previews replacements; `--generated` selects the source class without a database connection.
 - Namespace/import resolution, unresolved-reference reporting, format preservation and linted file replacement.

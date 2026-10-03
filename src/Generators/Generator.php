@@ -70,7 +70,7 @@ abstract class Generator
             'foreignKeys' => $foreignKeys,
             'generation' => [
                 'generator.version' => '2.0.0',
-                'output.column_helpers' => 2,
+                'output.column_helpers' => 3,
                 'database.driver' => $this->config->getDriver(),
                 'output.namespace' => $this->config->getOutputNamespace(),
                 'output.naming' => (new NamingResolver($this->config->getNamingConfig()))->getProfile(),

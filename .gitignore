@@ -31,4 +31,6 @@
 *.yml
 *.yaml
 /coverage/
+/.phpunit.cache/
+/phpunit.xml
 /logs/

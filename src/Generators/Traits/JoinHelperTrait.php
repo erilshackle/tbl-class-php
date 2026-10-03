@@ -33,25 +33,22 @@ trait JoinHelperTrait
 
     private function generateCallStatic(): string
     {
-        $columns = [];
-        foreach ($this->snapshot['tables'] as $table => $metadata) {
-            foreach ($metadata['columns'] as $column) {
-                $columns[$this->naming->getColumnConstName((string) $table, $column)] = (string) $table;
-            }
-        }
-        $columnMap = var_export($columns, true);
         return <<<PHP
 
     public static function __callStatic(string \$name, array \$args): string
     {
-        static \$columns = {$columnMap};
-        if (isset(\$columns[\$name])) {
-            \$alias = \$args[0] ?? \$args['alias'] ?? null;
-            if (\$alias !== null && !is_string(\$alias)) {
-                throw new \\TypeError('Column alias must be a string or null');
-            }
-            return (\$alias === null || \$alias === '' ? \$columns[\$name] : \$alias)
-                . '.' . constant("self::\$name");
+        if (!defined("self::\$name")) {
+            throw new \\BadMethodCallException("Undefined Tbl helper: \$name");
+        }
+        \$value = constant("self::\$name");
+        \$alias = \$args[0] ?? \$args['alias'] ?? null;
+        // Table constants use their full normalized names, even with short naming.
+        \$tableName = preg_replace('/[^a-zA-Z0-9_\\x80-\\xff]/', '_', \$value);
+        if (\$tableName === '' || ctype_digit(\$tableName[0]) || strtolower(\$tableName) === 'class') {
+            \$tableName = '_' . \$tableName;
+        }
+        if (strtolower(\$name) === strtolower(\$tableName)) {
+            return \$alias === null || \$alias === '' ? \$value : "\$value AS \$alias";
         }
         if (str_starts_with(strtolower(\$name), 'on__') && defined("self::\$name")) {
             \$e = constant("self::\$name");
@@ -65,11 +62,7 @@ trait JoinHelperTrait
             return "{\$fromTable}.{\$fromCol} = {\$toTable}.{\$toCol}";
         }
 
-        if (defined("self::" . \$name)) {
-            \$table = constant("self::\$name");
-            return (\$a = \$args[0] ?? null) ? "\$table AS \$a" : \$table;
-        }
-        throw new \BadMethodCallException("Undefined Tbl helper: \$name");
+        return \$alias === null || \$alias === '' ? \$value : "\$alias.\$value";
     }
 
 PHP;

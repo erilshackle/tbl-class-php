@@ -8,7 +8,7 @@
 .github/ export-ignore
 
 # Ignorar arquivos de configuração de desenvolvimento/ambiente
-.phpunit.xml.dist export-ignore
+/phpunit.xml.dist export-ignore
 .gitignore export-ignore
 .gitattributes export-ignore
 php.yml export-ignore

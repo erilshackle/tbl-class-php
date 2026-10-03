@@ -1,328 +1,269 @@
 # Tbl::class
 
-### Type-safe database schema constants para PHP
+Generate PHP constants from your database schema for IDE autocomplete and fewer SQL naming mistakes.
 
 [![Latest Version](https://img.shields.io/packagist/v/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class)
 [![PHP Version](https://img.shields.io/packagist/php-v/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class)
-[![License](https://img.shields.io/packagist/l/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class)
+[![License](https://img.shields.io/packagist/l/eril/tbl-class)](LICENSE)
 [![Downloads](https://img.shields.io/packagist/dt/eril/tbl-class)](https://packagist.org/packages/eril/tbl-class)
-[![Stars](https://img.shields.io/github/stars/erilshackle/tbl-class-php?style=social)](https://github.com/erilshackle/tbl-class-php)
 
-`tbl-class` generates **immutable PHP entry-point classes** that map your database schema  
-(tables, columns and relations) into **compile-safe constants**.
+**Version 2.0.0** introduces simplified naming strategies and the `independence` command. Read the [migration guide](docs/migration-v2.md) before regenerating classes in an existing project.
 
-It provides a stable abstraction layer between your database and your application code,
-eliminating fragile string literals and runtime schema assumptions.
-
----
-
-## Why tbl-class?
-
-Database-driven PHP applications commonly rely on raw strings:
+`tbl-class` reads a MySQL, PostgreSQL, or SQLite database and generates a `Tbl` class containing table names, column names, foreign key columns, and JOIN expressions. Enum values exposed by the database reader are documented in column comments.
 
 ```php
-SELECT * FROM users WHERE created_at > ?
+use Tbl\Tbl;
+
+Tbl::users;                       // 'users'
+Tbl::users__id;                   // 'id'
+Tbl::fk__posts__users;            // 'user_id'
+Tbl::on__posts__users;            // 'posts.user_id = users.id'
 ```
 
-This approach is fragile:
-
-* typos are silent
-* refactors are risky
-* schema changes break code at runtime
-* no compile-time guarantees
-
----
-
-## 📦 Instalação
-
-```bash
-composer require erilshackle/tbl-class-php --dev
-```
-
-Recomendado como dependência de desenvolvimento.
-
----
-
-## 🚀 Utilização Rápida
-
-### 1. Criar configuração inicial
-
-```bash
-php vendor/bin/tbl-class init
-```
-
-Gera o ficheiro `tblclass.yaml`.
-
----
-
-### 2. Configurar ligação à base de dados
-
-```yaml
-database:
-  driver: mysql
-  host: env(DB_HOST)
-  name: env(DB_NAME)
-  user: env(DB_USER)
-  password: env(DB_PASS)
-```
-
----
-
-### 3. Gerar classes PHP
-
-```bash
-php vendor/bin/tbl-class generate
-```
-
-É gerado o ficheiro `Tbl.php` contendo:
-
-* `Tbl` → tabelas, colunas e aliases
-* `TblFk` → foreign keys
-* `TblEnum` → valores enum
-
----
-
-### 4. Verificar alterações no esquema
-
-```bash
-php vendor/bin/tbl-class check
-```
-
-Para listar as diferenças desde a última geração:
-
-```bash
-php vendor/bin/tbl-class check --diff
-```
-
-O `check` compara tabelas, colunas, foreign keys, valores de enum disponibilizados
-pelo leitor do banco, driver, namespace e opções de nomenclatura. Não altera ficheiros.
-Ficheiros gerados por versões anteriores precisam de uma nova execução de `generate`
-para guardar o snapshot usado pelo diff. Consulta os detalhes em
-[verificação e geração segura](docs/configuration.md#verificação-e-geração-segura).
-
----
-
-## 📁 Exemplo de Código Gerado 
-
-```php
-Tbl::users                // users
-Tbl::users__created_at    // created_at
-Tbl::fk__posts__users     // user_id 
-Tbl::on__contacts__users  // contacts.user_id = users.id
-```
-
-Your application code becomes **schema-aware, explicit and refactor-safe**.
-
----
+These examples assume a `posts.user_id` foreign key referencing `users.id` and the `full` naming strategy. The constants hold strings; they do not validate SQL queries or enforce database column types.
 
 ## Installation
+
+Requires PHP 8.1 or later, Composer, and PDO with the driver for your database. Generation validates its output using the PHP CLI and requires `proc_open`.
 
 ```bash
 composer require eril/tbl-class --dev
 ```
 
----
+The generator can be a development dependency. Keep the generated class available through your application's production autoload configuration.
 
-## Usage
+## Quick start
 
-### First run
+### 1. Create the configuration
 
-```bash
-./vendor/bin/tbl-class
-```
-
-On first execution, a configuration file is generated:
-
-```text
-tblclass.yaml
-```
-
-**Edit** the file, configure your **database connection**, then run the command again.
-
----
-
-### Generate schema constants
+Run commands from your project root:
 
 ```bash
-./vendor/bin/tbl-class
+php vendor/bin/tbl-class init
 ```
 
-This command:
+This creates `tblclass.yaml`. Running the CLI without arguments only lists commands.
 
-* connects to the database
-* introspects the schema
-* generates PHP constants according to your configuration
-
----
-
-### Check for schema changes (CI-friendly)
-
-```bash
-./vendor/bin/tbl-class --check
-```
-
-This mode:
-
-* does **not** generate files
-* compares the current database schema with the last generated version
-* exits with a non-zero status code if changes are detected
-
-Designed for CI pipelines and deployment safety checks.
-
-> It's not meant to be checked overtime, but only
-
----
-
-## Configuration
-
-All configuration lives in `tblclass.yaml`.
-
-A clean template is auto-generated on first run:
+### 2. Configure the database and output
 
 ```yaml
-# Enable or disable generation
-enabled: true       
-
-# Optional: include a PHP file before execution
-include: null
-
-# ------------------------------------------------------------
-# Database configuration
-# ------------------------------------------------------------
 database:
-
-  # Optional custom connection resolver
-  # Must return a PDO instance
-  # Example: App\\Database::getConnection
   connection: null
 
-  driver: mysql            # mysql | pgsql | sqlite
-
-  # MySQL / PostgreSQL
-  host: env(DB_HOST)       # default: localhost
-  port: env(DB_PORT)       # default: 3306 | 5432
-  name: env(DB_NAME)       # database name
+  driver: mysql
+  host: env(DB_HOST)
+  port: 3306
+  name: env(DB_NAME)
   user: env(DB_USER)
   password: env(DB_PASS)
 
-  # SQLite only
-  # path: env(DB_PATH)
-
-# ------------------------------------------------------------
-# Output configuration
-# ------------------------------------------------------------
 output:
-
-  # Output directory
   path: "./"
-
-  # PHP namespace for generated classes
   namespace: ""
-
-  # ⚠ IMPORTANT
-  # This strategy defines ALL generated constant names.
-  # Changing it later WILL rename constants and MAY break code.
-  #
-  # Strategies:
-  # - full   → table, table__column, fk__table__references
-  # - short  → table, tbl__column,   fk__table__references
-  # - abbr   → table, tbl__column,   fk__tbl__ref
-  # - alias  → table, t__column,     fk__t__r
-  # - upper  → TABLE, TABLE__COLUMN, FK__TABLE__REFERENCES
   naming:
     strategy: full
+    overrides: {}
 ```
 
-📘 **Full configuration reference:**
-[https://github.com/erilshackle/tbl-class-php/wiki/config](https://github.com/erilshackle/tbl-class-php/wiki/config)
+Set the referenced environment variables before running the generator. Environment expressions read process variables; a `.env` file is not loaded automatically.
 
----
+For PostgreSQL, use `driver: pgsql` and the appropriate port, usually `5432`. For SQLite, use `driver: sqlite` and `database.path` pointing to an existing database file.
 
-## Generated Output
+### 3. Generate the class
 
-Depending on the enabled generators, `tbl-class` produces PHP classes containing:
-
-* table name constants
-* column name constants
-* foreign key references
-* JOIN expressions derived from relations
-
-Example usage:
-
-```php
-Tbl::users                       // returns "users"
-Tbl::users('u')                    // returns "users AS u"
-Tbl::users__email                // returns "email"
-Tbl::fk__users__roles            // returns "role_id" or whataver you named it in DB
-Tbl::on__users__roles()          // returns "users.role_id = roles.id"
-Tbl::on__users__roles('u', 'r')  // // returns "u.role_id = r.id"
+```bash
+php vendor/bin/tbl-class generate
 ```
 
-All output is **deterministic**, **static**, and **runtime-free**.
+With the configuration above, this writes `Tbl/Tbl.php` containing `Tbl\Tbl`.
 
----
+Generation escapes PHP literals, detects constant collisions, and validates a temporary file before replacing the previous output. Resolve any reported collision before regenerating; names are not silently changed to make them unique.
 
-## Autoloading
+### 4. Configure autoloading
 
-After generation, add **one** of the following to your `composer.json`.
-
-### PSR-4
+Merge this entry into your application's `composer.json`:
 
 ```json
-"autoload": {
-  "psr-4": {
-    "Tbl\\": "path/to/Tbl/"
+{
+  "autoload": {
+    "psr-4": {
+      "Tbl\\": "Tbl/"
+    }
   }
 }
 ```
 
-### Files
-
-```json
-"autoload": {
-  "files": [
-    "path/to/Tbl.php"
-  ]
-}
-```
-
-Then run:
+Then rebuild the autoloader:
 
 ```bash
 composer dump-autoload
 ```
 
----
+Import the generated class with `use Tbl\Tbl;`.
+
+The generator adds a `Tbl` directory and namespace segment when needed. For example, `output.path: "./src/Database"` and `output.namespace: 'App\Database'` produce `src/Database/Tbl/Tbl.php` with the class `App\Database\Tbl\Tbl`. An existing `"App\\": "src/"` PSR-4 mapping covers that output.
+
+## Custom PDO connection
+
+To reuse your application's connection, provide a static method returning a PDO instance:
+
+```yaml
+include: bootstrap.php
+database:
+  connection: 'App\Database::getConnection'
+  driver: mysql
+  name: my_database
+```
+
+The optional `include` loads your bootstrap before resolving the callback. The reader still uses `driver` and `name` for schema introspection; host, port, user, and password are not used to create a new connection when a callback is configured.
+
+## Naming strategies
+
+The strategy controls both abbreviation and letter casing. Only these exact values are accepted:
+
+| Strategy | Table constant | Column constant | JOIN constant |
+| --- | --- | --- | --- |
+| `full` | `users` | `users__id` | `on__posts__users` |
+| `FULL` | `USERS` | `USERS__ID` | `ON__POSTS__USERS` |
+| `short` | `users` | `usr__id` | `on__pst__usr` |
+| `SHORT` | `USERS` | `USR__ID` | `ON__PST__USR` |
+
+The abbreviated examples above use these explicit overrides:
+
+```yaml
+output:
+  naming:
+    strategy: SHORT
+    overrides:
+      users: usr
+      posts: pst
+```
+
+Without overrides, `short` and `SHORT` use the bundled English, Portuguese, and Spanish dictionaries and abbreviation rules. A name may remain unchanged when no abbreviation is available.
+
+Overrides affect table prefixes in column and relation constants, in either naming family. Table constants keep their full names. Strategy casing also applies to overrides; SQL values always preserve the original database identifiers.
+
+The separator `__` and prefixes `fk__`, `on__`, and `enum__` are fixed. Mixed-case strategies such as `Full` and `Short` are rejected, as is the removed `case` option. Changing a strategy or override can rename constants used by your application.
+
+## Column qualification and JOINs
+
+Constants return unqualified column names. Dynamic helpers can qualify them with a table name or an explicit alias:
+
+```php
+Tbl::users__id;            // 'id'
+Tbl::users__id();          // 'id'
+Tbl::users__id('users');   // 'users.id'
+Tbl::users__id('u');       // 'u.id'
+Tbl::users__id(alias: 'u'); // 'u.id'
+Tbl::users('u');           // 'users AS u'
+```
+
+Helpers use `__callStatic`; individual methods are not generated. Constants remain available for IDE autocomplete.
+
+```php
+use Tbl\Tbl;
+
+$sql = 'SELECT '
+    . Tbl::users__id('u') . ' AS user_id, '
+    . Tbl::posts__id('p') . ' AS post_id'
+    . ' FROM ' . Tbl::users('u')
+    . ' JOIN ' . Tbl::posts('p')
+    . ' ON ' . Tbl::on__posts__users('p', 'u')
+    . ' WHERE ' . Tbl::users__id('u') . ' = ?';
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute([$userId]);
+```
+
+Column aliases are local to each call. Omitting the alias, or passing `null` or `''`, returns the unqualified column name. Pass an alias or table name explicitly when qualification is needed. Calling `Tbl::users('u')` does not change later calls. No per-column lookup map is generated.
+
+Use aliases defined by your code. Helpers assemble SQL fragments without quoting identifiers or binding values; use database-appropriate identifier quoting when needed and prepared statements for query values.
+
+## Checking for changes
+
+```bash
+php vendor/bin/tbl-class check
+php vendor/bin/tbl-class check --diff
+```
+
+Both commands are read-only. They compare the generated snapshot with table and column names, foreign keys, enum values exposed by the reader, the database driver, the output namespace, naming settings, and the recorded generator version.
+
+Example diff:
+
+```text
++ users.phone
+- users.username
+~ output.naming.strategy: "full" -> "FULL"
+```
+
+This is not a complete DDL comparison: column types, defaults, indexes, and nullability are not checked. General enum extraction from SQLite `CHECK` constraints is not supported. Manual edits to the generated class body are not verified.
+
+Older generated files without a snapshot need one new generation before detailed comparisons are available.
+
+## Independence: replace references with literal values
+
+Use `independence` to convert references in a selected PHP directory:
+
+```bash
+php vendor/bin/tbl-class independence ./src --dry-run
+php vendor/bin/tbl-class independence ./src
+```
+
+`--dry-run` lists each proposed replacement with its file and line, without writing files.
+
+| Reference | Replacement |
+| --- | --- |
+| `Tbl::users` | `'users'` |
+| `Tbl::users__id` | `'id'` |
+| `Tbl::users('u')` | `'users AS u'` |
+| `Tbl::users__id('u')` | `'u.id'` |
+| `Tbl::on__posts__users('p', 'u')` | `'p.user_id = u.id'` |
+
+The converter resolves namespaces, import aliases, and grouped imports. It preserves comments, strings, and formatting outside replaced expressions. It skips `vendor`, `.git`, symbolic links, and the selected generated file.
+
+It parses the source and interprets supported helper operations without including or executing the files it reads. It does not connect to the database or run the configuration's `include` file.
+
+To select an older generated class, or work without `tblclass.yaml`:
+
+```bash
+php vendor/bin/tbl-class independence ./src --generated ./backup/Tbl.php --dry-run
+```
+
+Use the class that matches your existing references, before regenerating with a different naming strategy.
+
+Dynamic arguments, unknown members, class references, and unsupported helper operations remain unchanged and are reported with their file and line. Resolvable replacements are still applied when other references remain unresolved.
+
+Imports, Composer autoload entries, dependencies, and generated files are not removed. Review references built through strings or reflection, code outside the selected directory, and unresolved references before removing the generated class.
+
+All candidate PHP files are parsed before writing. Each changed file is linted and replaced atomically, but the entire directory operation is not a transaction: a write failure can leave earlier files already updated.
+
+## CLI reference
+
+| Command | Purpose |
+| --- | --- |
+| `init` | Create `tblclass.yaml` without overwriting an existing file |
+| `generate` | Read the database and generate `Tbl.php` |
+| `check [--diff]` | Check schema and generation settings without writing |
+| `independence <directory> [--dry-run] [--generated <file>]` | Replace resolvable references with literals |
+| `--help` | Show usage |
+| `--version` | Show the CLI version |
+
+Legacy `--generate` and `--check` flags remain available.
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | Success; no detected differences or unresolved references for the selected operation |
+| `1` | Operational error, detected changes, or unresolved independence references |
+| `2` | Invalid CLI arguments, initial generation required, or an existing configuration when running `init` |
 
 ## Documentation
 
-All advanced topics, design decisions and future extensions are documented in the Wiki:
+The detailed guides are currently in Portuguese:
 
-📚 [Wiki](https://github.com/erilshackle/tbl-class-php/wiki)
-
----
-
-## What tbl-class is not
-
-* ❌ Not an ORM
-* ❌ Not a query builder
-* ❌ Not a migration tool
-* ❌ Not a runtime schema inspector
-
-* Verifique a base de dados configurada
-* Confirme que existem tabelas
-
-**Erro de ligação**
-
-* Credenciais incorrectas no `tblclass.yaml`
-* Serviço da base de dados inactivo
-
-**Schema alterado**
-
-* Reexecutar `tbl-class generate`
-
----
+- [Configuration](docs/configuration.md)
+- [Migrating to v2](docs/migration-v2.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 
-MIT © 2026 Eril TS Carvalho
+[MIT](LICENSE) © Eril TS Carvalho.

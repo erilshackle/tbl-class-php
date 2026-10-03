@@ -116,6 +116,8 @@ final class LiteralEvaluator
                 'trim' => trim(...$args),
                 'explode' => explode(...$args),
                 'is_string' => is_string(...$args),
+                'preg_replace' => preg_replace(...$args),
+                'ctype_digit' => ctype_digit(...$args),
                 'defined' => str_starts_with($args[0], 'self::') && array_key_exists(substr($args[0], 6), $this->constants),
                 'constant' => str_starts_with($args[0], 'self::') ? $this->constant(substr($args[0], 6)) : throw new RuntimeException('External constant'),
                 'array_map' => count($args) === 2 && $args[0] === 'trim' ? array_map('trim', $args[1]) : throw new RuntimeException('Unsupported callback'),
