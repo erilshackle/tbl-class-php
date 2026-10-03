@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.0] - 2026-10-02
+## [2.0.0] - 2026-10-03
 
 ### Changed
 - Naming consolidated into `full`, `FULL`, `short` and `SHORT`, with per-table `overrides`. Strategy spelling determines casing; the separate `case` option and mixed-case strategies are rejected.
@@ -11,11 +11,21 @@ All notable changes to this project will be documented in this file.
 - Generator version participates in the generation signature. Uppercase helper names preserve original SQL identifiers.
 
 ### Added
-- PHPUnit 10.5 test suite with isolated fixtures and eight output-matrix data-provider scenarios, run through `composer test`.
+- PHPUnit 10.5 tests organized by behavior, with SQLite in-memory integration tests and all eight strategy/override combinations, run through `composer test`.
 - `independence <directory>` replaces constants and literal helper calls using PHP syntax analysis.
 - `--dry-run` previews replacements; `--generated` selects the source class without a database connection.
 - Namespace/import resolution, unresolved-reference reporting, format preservation and linted file replacement.
 - Migration guide and regression tests for naming and independence.
+- Read-only `check --diff` with schema and generation-setting differences from embedded snapshots.
+- Explicit table, column, and JOIN aliases through generated magic helpers; aliases do not persist between calls.
+- English VitePress documentation with local search and a GitHub Pages build/deployment workflow.
+
+### Fixed
+- Escape generated PHP literals and comments, validate namespaces, and reject constant collisions.
+- Lint temporary PHP output before replacing existing files, preserving previous output on generation failures.
+
+### Removed
+- Unused `Psr4ClassesGenerator`; generation uses `FileClassGenerator`. PSR-4 autoloading of the generated class remains supported.
 
 ## [1.1.0] - 2026-01-25
 
