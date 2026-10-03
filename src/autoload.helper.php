@@ -1,6 +1,6 @@
 <?php
 
-define('TBLCLASS_VERSION', "1.0.0");      // version
+define('TBLCLASS_VERSION', "2.0.0");      // version
 
 // Definir apenas cores que serão usadas
 define('COLOR_RESET', "\033[0m");

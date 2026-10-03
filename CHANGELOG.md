@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2026-10-02
+
+### Changed
+- Naming consolidated into `full`, `FULL`, `short` and `SHORT`, with per-table `overrides`. Strategy spelling determines casing; the separate `case` option and mixed-case strategies are rejected.
+- `short` abbreviates columns and relation endpoints consistently. Separators and prefixes are fixed.
+- Removed `abbr`, `alias`, and `upper` strategies; invalid/legacy options produce migration guidance.
+- Generator version participates in the generation signature. Uppercase helper names preserve original SQL identifiers.
+
+### Added
+- `independence <directory>` replaces constants and literal helper calls using PHP syntax analysis.
+- `--dry-run` previews replacements; `--generated` selects the source class without a database connection.
+- Namespace/import resolution, unresolved-reference reporting, format preservation and linted file replacement.
+- Migration guide and regression tests for naming and independence.
+
 ## [1.1.0] - 2026-01-25
 
 ### Added

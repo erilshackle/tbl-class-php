@@ -2,220 +2,88 @@
 
 namespace Eril\TblClass\Resolvers;
 
-use Eril\TblClass\Traits\TableAliasGenerator;
 use Eril\TblClass\Generators\PhpOutput;
+use InvalidArgumentException;
 
+/** v2 naming: stable prefixes independent of other schema tables. */
 class NamingResolver
 {
-    use TableAliasGenerator;
-
     private array $config;
     private ?TableAbbreviator $abbreviator = null;
 
-    private const DICTIONARY_FILES = [
-        'en' => 'common_tables_en.php',
-        'pt' => 'common_tables_pt.php',
-        'es' => 'common_tables_es.php',
-    ];
-
-    /**
-     * @param array $naming ['strategy' => full|abbr|alias|upper, 'separator' => double|single]
-     */
     public function __construct(array $naming = [])
     {
-        $this->config = array_merge([
-            'strategy'  => 'full',
-            'separator' => 'double',
-            'fk_prefix' => 'fk__',
-            'join_prefix' => 'on__',
-            'enum_prefix' => 'enum__',
-        ], $naming);
-
-        $this->bootDictionaries();
-    }
-
-    // ==========================================================
-    // BOOTSTRAP DICTIONARIES
-    // ==========================================================
-    private function bootDictionaries(): void
-    {
-        if (in_array($this->config['strategy'], ['full', 'upper'])) {
-            return;
+        if (array_key_exists('case', $naming)) {
+            throw new InvalidArgumentException('naming.case was removed. Use strategy: full, FULL, short or SHORT.');
         }
-
-        $dictionary = $this->loadAllDictionaries();
-
-        if (in_array($this->config['strategy'] , ['abbr','short'])) {
+        $unknown = array_diff(array_keys($naming), ['strategy', 'overrides']);
+        if ($unknown) {
+            throw new InvalidArgumentException('v2 naming supports only strategy and overrides. Remove: ' . implode(', ', $unknown));
+        }
+        $this->config = array_replace(['strategy' => 'full', 'overrides' => []], $naming);
+        if (!in_array($this->config['strategy'], ['full', 'FULL', 'short', 'SHORT'], true)) {
+            throw new InvalidArgumentException('v2 naming.strategy must be exactly full, FULL, short or SHORT. Migrate abbr to short, upper to FULL, and alias to explicit overrides. Mixed casing is not supported.');
+        }
+        if (!is_array($this->config['overrides'])) {
+            throw new InvalidArgumentException('naming.overrides must map table names to prefixes.');
+        }
+        foreach ($this->config['overrides'] as $table => $prefix) {
+            if (!is_string($prefix) || $prefix === '' || PhpOutput::identifier($prefix) !== $prefix) {
+                throw new InvalidArgumentException("Invalid naming override for table {$table}.");
+            }
+        }
+        if (strtolower($this->config['strategy']) === 'short') {
+            $dictionary = [];
+            foreach (['en', 'pt', 'es'] as $language) {
+                $dictionary = array_merge($dictionary, require dirname(__DIR__, 2) . "/data/common_tables_{$language}.php");
+            }
             $this->abbreviator = new TableAbbreviator($dictionary);
         }
-        // alias já usa TableAliasGenerator
     }
-
-    private function loadAllDictionaries(): array
-    {
-        $combined = [];
-
-        foreach (self::DICTIONARY_FILES as $file) {
-            $path = $this->findDictionaryPath($file);
-            if ($path) {
-                $data = include $path;
-                if (is_array($data)) {
-                    $combined = array_merge($combined, $data);
-                }
-            }
-        }
-
-        return $combined;
-    }
-
-    private function findDictionaryPath(string $filename): ?string
-    {
-        $paths = [
-            dirname(__DIR__, 2) . "/data/{$filename}",
-            getcwd() . "/data/{$filename}",
-            dirname(__DIR__) . "/data/{$filename}",
-        ];
-
-        foreach ($paths as $path) {
-            if (is_file($path)) {
-                return $path;
-            }
-        }
-
-        return null;
-    }
-
-    // ==========================================================
-    // API PÚBLICA
-    // ==========================================================
 
     public function getTableConstName(string $table, bool $forceFull = false): string
     {
-        $name = $forceFull ? $this->normalizeName($table) : $this->resolveTablePart($table);
-        return $this->applyCasing($name);
+        return $this->applyCasing($forceFull ? $table : $this->tablePart($table));
     }
 
     public function getColumnConstName(string $table, string $column): string
     {
-        $tablePart  = $this->resolveTablePart($table);
-        $columnPart = $this->normalizeName($column);
-
-        if ($this->isConcatenated()) {
-            $tablePart = $this->concat($tablePart);
-        }
-
-        return $this->applyCasing($tablePart . $this->separator() . $columnPart);
+        return $this->applyCasing($this->tablePart($table) . '__' . $column);
     }
 
     public function getEnumConstName(string $table, string $value): string
     {
-        $strategy = $this->config['strategy'] == 'short' ? 'full' : $this->config['strategy'];
-        $tablePart = $this->resolveTablePart($table, $strategy);
-
-        if ($this->isConcatenated()) {
-            $tablePart = $this->concat($tablePart);
-        }
-
-        return $this->applyCasing($this->config['enum_prefix'] . $tablePart . $this->separator() . $this->normalizeEnumValue($value));
+        $value = trim(preg_replace('/[^a-zA-Z0-9_]+/', '_', $value), '_') ?: 'value';
+        return $this->applyCasing('enum__' . $this->tablePart($table) . '__' . $value);
     }
 
     public function getForeignKeyConstName(string $fromTable, string $toTable): string
     {
-        $strategy = $this->config['strategy'] == 'short' ? 'full' : $this->config['strategy'];
-        $from = $this->resolveTablePart($fromTable, $strategy);
-        $to   = $this->resolveTablePart($toTable, $strategy);
-
-        if ($this->isConcatenated()) {
-            $from = $this->concat($from);
-            $to   = $this->concat($to);
-        }
-
-        return $this->applyCasing($this->config['fk_prefix'] . $from . $this->separator() . $to);
+        return $this->relation('fk__', $fromTable, $toTable);
     }
 
     public function getOnJoinConstName(string $fromTable, string $toTable): string
     {
-        $strategy = $this->config['strategy'] == 'short' ? 'full' : $this->config['strategy'];
-        $from = $this->resolveTablePart($fromTable, $strategy);
-        $to   = $this->resolveTablePart($toTable, $strategy);
-
-        if ($this->isConcatenated()) {
-            $from = $this->concat($from);
-            $to   = $this->concat($to);
-        }
-
-        return $this->applyCasing($this->config['join_prefix'] . $from . $this->separator() . $to);
+        return $this->relation('on__', $fromTable, $toTable);
     }
 
-    // ==========================================================
-    // CORE LOGIC
-    // ==========================================================
-
-    private function resolveTablePart(string $table, $strategy = null): string
+    private function relation(string $prefix, string $from, string $to): string
     {
-        $strategy = $strategy ?? $this->config['strategy'];
-        return match ($strategy) {
-            'abbr', 'short'  => $this->abbreviateWithFallback($table),
-            'alias' => $this->getTableAlias($table),
-            'upper' => strtoupper($table),
-            default => $this->normalizeName($table),
-        };
+        return $this->applyCasing($prefix . $this->tablePart($from) . '__' . $this->tablePart($to));
     }
 
-    private function abbreviateWithFallback(string $name): string
+    private function tablePart(string $table): string
     {
-        if (!$this->abbreviator) {
-            return $this->normalizeName($name);
-        }
-
-        return $this->abbreviator->abbreviate($name) ?: $this->normalizeName($name);
-    }
-
-    // ==========================================================
-    // HELPERS
-    // ==========================================================
-
-    private function separator(): string
-    {
-        return $this->config['separator'] === 'double' ? '__' : '_';
-    }
-
-    private function isConcatenated(): bool
-    {
-        return false; // mantido simples para v1
-    }
-
-    private function concat(string $name): string
-    {
-        return str_replace('_', '', $name);
-    }
-
-    private function normalizeName(string $name): string
-    {
-        return strtolower($name);
-    }
-
-    private function normalizeEnumValue(string $value): string
-    {
-        $value = preg_replace('/[^a-zA-Z0-9_]/', '_', $value);
-        $value = preg_replace('/_+/', '_', $value);
-        return strtolower(trim($value, '_')) ?: 'value';
+        return $this->config['overrides'][$table] ?? ($this->abbreviator?->abbreviate($table) ?: $table);
     }
 
     private function applyCasing(string $name): string
     {
         $name = PhpOutput::identifier($name);
-        return $this->config['strategy'] === 'upper' ? strtoupper($name) : strtolower($name);
+        return in_array($this->config['strategy'], ['FULL', 'SHORT'], true) ? strtoupper($name) : strtolower($name);
     }
 
-    // ==========================================================
-    // STATE
-    // ==========================================================
-
-    public function reset(): void
-    {
-        $this->resetAliases();
-    }
+    public function reset(): void {}
 
     public function getProfile(): array
     {

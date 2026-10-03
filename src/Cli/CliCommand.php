@@ -5,6 +5,7 @@ namespace Eril\TblClass\Cli;
 use Eril\TblClass\Config;
 use Eril\TblClass\GeneratorResult;
 use Eril\TblClass\Generators\FileClassGenerator;
+use Eril\TblClass\Independence\IndependenceCommand;
 use Eril\TblClass\Introspection\GeneratedClassMetadata;
 use Eril\TblClass\Resolvers\ConnectionResolver;
 use Eril\TblClass\Schema\MySqlSchemaReader;
@@ -23,6 +24,9 @@ class CliCommand
     private ?string $command = null;
     private bool $check = false;
     private bool $diff = false;
+    private bool $dryRun = false;
+    private ?string $scanPath = null;
+    private ?string $generatedFile = null;
 
     final public function run(array $argv): void
     {
@@ -38,6 +42,11 @@ class CliCommand
                 return;
             }
 
+            if ($this->command === 'independence') {
+                $this->independence();
+                return;
+            }
+
             $this->bootstrap();
             $this->connect();
             $result = $this->execute();
@@ -49,10 +58,20 @@ class CliCommand
 
     private function parseArgs(array $argv): void
     {
-        foreach ($argv as $i => $arg) {
-            if ($i === 0) continue;
+        for ($i = 1; $i < count($argv); $i++) {
+            $arg = $argv[$i];
 
             switch ($arg) {
+                case '--dry-run':
+                    $this->dryRun = true;
+                    break;
+                case '--generated':
+                    if (!isset($argv[$i + 1]) || str_starts_with($argv[$i + 1], '-')) {
+                        CliPrinter::error('--generated requires a PHP file path');
+                        exit(2);
+                    }
+                    $this->generatedFile = $argv[++$i];
+                    break;
                 case '--diff':
                     $this->diff = true;
                     break;
@@ -76,10 +95,15 @@ class CliCommand
                 case 'init':
                 case 'generate':
                 case 'check':
+                case 'independence':
                     $this->setCommand($arg);
                     $this->check = $arg === 'check';
                     break;
                 default:
+                    if ($this->command === 'independence' && $this->scanPath === null && !str_starts_with($arg, '-')) {
+                        $this->scanPath = $arg;
+                        break;
+                    }
                     $kind = str_starts_with($arg, '-') ? 'option' : 'command';
                     CliPrinter::error("Unknown {$kind}: {$arg}");
                     CliPrinter::line("Use --help to see available commands");
@@ -90,6 +114,44 @@ class CliCommand
             CliPrinter::error('--diff is only available with check');
             exit(2);
         }
+        if (($this->dryRun || $this->generatedFile !== null) && $this->command !== 'independence') {
+            CliPrinter::error('--dry-run and --generated are only available with independence');
+            exit(2);
+        }
+        if ($this->command === 'independence' && $this->scanPath === null) {
+            CliPrinter::error('Usage: tbl-class independence <directory> [--dry-run] [--generated <Tbl.php>]');
+            exit(2);
+        }
+    }
+
+    private function independence(): void
+    {
+        $file = $this->generatedFile;
+        if ($file === null) {
+            $configFile = getcwd() . '/tblclass.yaml';
+            if (!is_file($configFile)) {
+                throw new Exception('Provide --generated <Tbl.php> or create tblclass.yaml.');
+            }
+            // Do not bootstrap includes, connect to a database, or load generated PHP.
+            $file = (new Config($configFile))->getTblFile();
+        }
+        $report = (new IndependenceCommand())->run($this->scanPath, $file, $this->dryRun);
+        foreach ($report['files'] as $path => $count) {
+            CliPrinter::line(($this->dryRun ? 'Would update: ' : 'Updated: ') . "{$path} ({$count} replacements)");
+        }
+        if ($this->dryRun) {
+            foreach ($report['changes'] as $change) {
+                CliPrinter::line($change['file'] . ':' . $change['line'] . ': '
+                    . json_encode($change['before'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                    . ' -> ' . json_encode($change['after'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            }
+        }
+        foreach ($report['pending'] as $pending) {
+            CliPrinter::warn($pending);
+        }
+        CliPrinter::line("{$report['replacements']} replacements; " . count($report['pending']) . ' unresolved references.');
+        CliPrinter::line('Scope: selected PHP directory only. Imports, Composer autoload and dependencies are unchanged. Review string-based/reflection references manually.');
+        exit($report['pending'] ? 1 : 0);
     }
 
     private function setCommand(string $command): void
@@ -121,10 +183,11 @@ class CliCommand
                 CliPrinter::line("tbl-class v" . TBLCLASS_VERSION);
                 CliPrinter::line();
                 CliPrinter::line("Commands:");
-                CliPrinter::line("  init      Create the configuration file");
-                CliPrinter::line("  generate  Generate the Tbl class");
-                CliPrinter::line("  check     Check for schema changes");
-                CliPrinter::line("  help      Show detailed help");
+                CliPrinter::line("  init           Create the configuration file");
+                CliPrinter::line("  generate       Generate the Tbl class");
+                CliPrinter::line("  check          Check for schema changes");
+                CliPrinter::line("  independence   Replace Tbl references with literal values");
+                CliPrinter::line("  help           Show detailed help");
     }
 
     private function bootstrap(): void
@@ -135,6 +198,8 @@ class CliCommand
         }
 
         $this->config = new Config($configFile);
+        // Reject legacy naming before running project bootstrap or connecting.
+        new \Eril\TblClass\Resolvers\NamingResolver($this->config->getNamingConfig());
         $configFile = basename($this->config->getConfigFile());
 
         CliPrinter::info("Using config: \033[1m{$configFile}");
@@ -282,6 +347,7 @@ class CliCommand
         if ($namespace) {
             CliPrinter::line("  \"autoload\": {");
             CliPrinter::line("    \"psr-4\": {");
+            CliPrinter::line("      ...,");
             CliPrinter::line("      \"" . trim($namespace, '\\') . "\\\\\": \"" . dirname($outputFile) . "/\"", 'bold');
             CliPrinter::line("    }");
             CliPrinter::line("  }");
@@ -338,12 +404,15 @@ class CliCommand
     init           Create tblclass.yaml
     generate       Generate the Tbl class
     check          Check for schema changes without generating
+    independence <directory>  Replace Tbl references with literal values
     help           Display detailed help
 
 \033[1mOptions:\033[0m
   --help, -h     Display this help message
   --version, -v  Display version information
   --diff         Show schema/configuration differences (check only)
+  --dry-run      Preview independence without writing files
+  --generated <file>  Generated Tbl.php to read (independence only)
 
 \033[1mExamples:\033[0m
     Initialize configuration:
@@ -355,6 +424,10 @@ class CliCommand
   Check for schema changes:
         tbl-class check
         tbl-class check --diff
+
+    Remove references in a selected directory:
+        tbl-class independence ./src --dry-run
+        tbl-class independence ./src
 
     Legacy flags remain available:
         tbl-class --generate

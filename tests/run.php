@@ -38,12 +38,12 @@ function verify(bool $condition, string $message): void
     $checks++;
 }
 
-function config(string $directory, string $strategy = 'full', string $namespace = 'Fixture'): Config
+function config(string $directory, string $strategy = 'full', string $namespace = 'Fixture', array $overrides = []): Config
 {
     $file = $directory . '/tblclass.yaml';
     file_put_contents($file, Yaml::dump([
         'database' => ['driver' => 'sqlite', 'path' => $directory . '/test.sqlite', 'name' => 'test'],
-        'output' => ['path' => $directory, 'namespace' => $namespace, 'naming' => ['strategy' => $strategy]],
+        'output' => ['path' => $directory, 'namespace' => $namespace, 'naming' => ['strategy' => $strategy, 'overrides' => $overrides]],
     ], 5));
     return new Config($file);
 }
@@ -76,8 +76,33 @@ try {
     $file = $config->getTblFile();
     $original = file_get_contents($file);
     verify($check()->isSuccess(), 'Unchanged schema must pass');
+    $previousSnapshot = \Eril\TblClass\Introspection\GeneratedClassMetadata::extractSnapshot($file);
+    unset($previousSnapshot['generation']['output.column_helpers']);
+    $previousOutput = preg_replace('/@generation-snapshot [A-Za-z0-9+\/=]+/',
+        '@generation-snapshot ' . base64_encode(json_encode($previousSnapshot)), $original);
+    $previousOutput = preg_replace('/@schema-hash md5:[a-f0-9]{32}/',
+        '@schema-hash md5:' . \Eril\TblClass\Introspection\SchemaHasher::hash($previousSnapshot), $previousOutput);
+    file_put_contents($file, $previousOutput);
+    verify($check()->isSchemaChanged(), 'Check must request regeneration for output without column helpers');
+    file_put_contents($file, $original);
     require $file;
     verify(\Fixture\Tbl\Tbl::users__id === 'id', 'Generated class must load with correct values');
+    verify(!method_exists(\Fixture\Tbl\Tbl::class, 'users__id'), 'Column helpers must use magic dispatch without explicit methods');
+    verify(\Fixture\Tbl\Tbl::users__id() === 'users.id', 'Column helper must default to the real table');
+    verify(\Fixture\Tbl\Tbl::users__id(alias: 'u') === 'u.id', 'Column helper must accept a named alias');
+    verify(\Fixture\Tbl\Tbl::users__id('author') === 'author.id'
+        && \Fixture\Tbl\Tbl::users__id('editor') === 'editor.id'
+        && \Fixture\Tbl\Tbl::users__id() === 'users.id', 'Aliases must not retain state');
+    verify(\Fixture\Tbl\Tbl::users__id('') === 'users.id'
+        && \Fixture\Tbl\Tbl::users__id(null) === 'users.id', 'Empty/null aliases must use the table');
+    $query = 'SELECT ' . \Fixture\Tbl\Tbl::users__id('u') . ' AS user_id, '
+        . \Fixture\Tbl\Tbl::posts__id('p') . ' AS post_id FROM '
+        . \Fixture\Tbl\Tbl::users('u') . ' JOIN ' . \Fixture\Tbl\Tbl::posts('p')
+        . ' ON ' . \Fixture\Tbl\Tbl::on__posts__users('p', 'u');
+    $joinDb = new PDO('sqlite::memory:');
+    $joinDb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $joinDb->exec('CREATE TABLE users (id INTEGER); CREATE TABLE posts (id INTEGER, user_id INTEGER); INSERT INTO users VALUES (1); INSERT INTO posts VALUES (2, 1)');
+    verify($joinDb->query($query)->fetch(PDO::FETCH_ASSOC) === ['user_id' => 1, 'post_id' => 2], 'Qualified JOIN must execute without ambiguous IDs');
     verify(\Fixture\Tbl\Tbl::on__posts__users('p', 'u') === 'p.user_id = u.id', 'JOIN helper regression');
 
     $schema->tables['users'][] = 'phone';
@@ -94,9 +119,9 @@ try {
     verify($check()->isSchemaChanged(), 'Removing all tables must be detected');
     verify(!$generate()->isSuccess() && file_get_contents($file) === $original, 'Empty generation must preserve output');
     $schema = new TestSchema();
-    $changedConfig = config($directory, 'upper');
+    $changedConfig = config($directory, 'short');
     $result = (new FileClassGenerator($schema, $changedConfig, true))->run();
-    verify(in_array('~ output.naming.strategy: "full" -> "upper"', $result->getData()['diff']), 'Naming diff missing');
+    verify(in_array('~ output.naming.strategy: "full" -> "short"', $result->getData()['diff']), 'Naming diff missing');
     $changedConfig = config($directory, 'full', 'Changed');
     verify((new FileClassGenerator($schema, $changedConfig, true))->run()->isSchemaChanged(), 'Namespace changes must be detected');
     $config = config($directory);
@@ -132,8 +157,8 @@ try {
     $schema->foreignKeys = [[
         'from_table' => "9 odd'\\name*/", 'from_column' => "a'b\\c", 'to_table' => 'users', 'to_column' => 'id',
     ]];
-    foreach (['full', 'short', 'abbr', 'alias', 'upper'] as $strategy) {
-        $config = config($directory, $strategy, 'Escaped' . ucfirst($strategy));
+    foreach (['full', 'short', 'FULL', 'SHORT'] as $index => $strategy) {
+        $config = config($directory, $strategy, 'EscapedStrategy' . $index);
         $result = (new FileClassGenerator($schema, $config))->run();
         verify($result->isSuccess(), "Unusual identifiers failed for {$strategy}: " . $result->getMessage());
         require $config->getTblFile();
@@ -142,12 +167,24 @@ try {
         $table = array_key_first($schema->tables);
         verify(constant($class . '::' . $naming->getTableConstName($table, true)) === $table, 'Table value must round-trip');
         verify(constant($class . '::' . $naming->getColumnConstName($table, "a'b\\c")) === "a'b\\c", 'Column value must round-trip');
+        $method = $naming->getColumnConstName($table, "a'b\\c");
+        verify(!method_exists($class, $method) && $class::$method() === $table . ".a'b\\c", 'Magic column helpers must preserve original identifiers under every naming strategy');
+        verify($class::$method('x') === "x.a'b\\c", 'Qualified column must preserve escaped values');
         verify(constant($class . '::' . $naming->getOnJoinConstName($table, 'users')) === $table . ".a'b\\c = users.id", 'JOIN literal must round-trip');
     }
 
     $config = config($directory);
     $schema = new TestSchema();
     $legacy = "<?php\n/**\n * @schema-hash md5:" . str_repeat('a', 32) . "\n */\n";
+    $standalone = new TestSchema();
+    $standalone->tables = ['users' => ['id']];
+    $standalone->foreignKeys = [];
+    $standaloneConfig = config($directory, 'full', 'Standalone');
+    verify((new FileClassGenerator($standalone, $standaloneConfig))->run()->isSuccess(), 'Generation without FKs failed');
+    require $standaloneConfig->getTblFile();
+    verify(\Standalone\Tbl\Tbl::users('u') === 'users AS u'
+        && \Standalone\Tbl\Tbl::users__id('u') === 'u.id', 'Table/column helpers must work without FKs');
+    $config = config($directory);
     file_put_contents($file, $legacy);
     $result = (new FileClassGenerator($schema, $config, true))->run();
     verify($result->isSchemaChanged() && str_contains($result->getData()['diff'][0], 'no snapshot'), 'Legacy output must explain migration');
@@ -179,6 +216,7 @@ try {
     unlink($file);
     [$code, $output] = cli($directory, ['check', '--diff']);
     verify($code === 2 && str_contains($output, 'Initial generation required'), 'Missing output CLI status incorrect');
+    require __DIR__ . '/v2.php';
     echo "OK: {$checks} assertions\n";
 } finally {
     unset($reader, $pdo);

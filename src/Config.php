@@ -44,8 +44,8 @@ class Config
                     'path' => './',
                     'namespace' => '',
                     'naming' => [
-                        'strategy' => 'full',   // full | abbr | alias
-                        'dictionary' => 'all'   // en | pt | es | all
+                        'strategy' => 'full',
+                        'overrides' => [],
                     ]
                 ]
             ];
@@ -61,7 +61,7 @@ class Config
     {
         $template = <<<YAML
 # ------------------------------------------------------------
-# tbl-class v1 configuration file
+# tbl-class v2 configuration file
 #
 # Auto-generated on first run.
 # Delete this file to regenerate a clean template.
@@ -112,12 +112,11 @@ output:
   #
   # Strategies:
   # - full   → table, table__column, fk__table__references
-  # - short  → table, tbl__column,   fk__table__references
-  # - abbr   → table, tbl__column,   fk__tbl__ref
-  # - alias  → table, t__column,     fk__t__r
-  # - upper  → TABLE, TABLE__COLUMN, FK__TABLE__REFERENCES
+  # - short  → table, tbl__column, fk__tbl__ref
+  # Separators and prefixes are fixed: __, fk__, on__, enum__
   naming:
-    strategy: full
+    strategy: full          # full | FULL | short | SHORT
+    overrides: {}           # e.g. {users: usr, purchase_orders: po}
     
 YAML;
 
@@ -183,7 +182,8 @@ YAML;
 
     public function getNamingStrategy(): string
     {
-        return $this->get('output.naming.strategy', 'full');
+        // Uppercase strategies are literal options, not environment variable names.
+        return $this->getNamingConfig()['strategy'] ?? 'full';
     }
 
     public function getDatabaseName(): string
@@ -225,7 +225,11 @@ YAML;
 
     public function getNamingConfig(): array
     {
-        return $this->config['output']['naming'] ?? []; /////
+        $naming = $this->config['output']['naming'] ?? [];
+        if (!is_array($naming)) {
+            throw new Exception('output.naming must be a mapping with strategy and overrides.');
+        }
+        return $naming;
     }
 
     public function hasConnectionCallback(): bool
