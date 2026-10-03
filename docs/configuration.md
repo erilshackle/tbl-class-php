@@ -5,21 +5,63 @@ The CLI reads `tblclass.yaml` from the current working directory. Paths in confi
 ## Complete MySQL example
 
 ```yaml
+# ------------------------------------------------------------
+# tbl-class v2 configuration file
+#
+# Auto-generated on first run.
+# Delete this file to regenerate a clean template.
+# ------------------------------------------------------------
+# Doc https://github.com/erilshackle/tbl-class-php/wiki/config
+# ------------------------------------------------------------
+
+# Optional: manually include a PHP file before execution
 include: null
+
+# ------------------------------------------------------------
+# Database configuration
+# ------------------------------------------------------------
 database:
+
+  # Optional custom connection resolver
+  # Must return a PDO instance
+  # Example: App\\Database::getConnection
   connection: null
-  driver: mysql
-  host: env(DB_HOST)
-  port: 3306
-  name: env(DB_NAME)
-  user: env(DB_USER)
-  password: env(DB_PASS)
+
+  driver: mysql            # mysql | pgsql | sqlite
+
+  # For MySQL / PostgreSQL
+  host: env(DB_HOST)       # default: localhost
+  port: env(DB_PORT)       # default: 3306 | 5432
+  name: env(DB_NAME)       # database name
+  user: env(DB_USER)       # e.g. root
+  password: env(DB_PASS)   # e.g. secret
+
+  # SQLite only
+  # path: env(DB_PATH)     # e.g. database.sqlite
+
+# ------------------------------------------------------------
+# Output configuration
+# ------------------------------------------------------------
 output:
-  path: "./src/Database"
-  namespace: 'App\Database'
+
+  # Output directory
+  path: "./"
+
+  # PHP namespace for the generated Tbl class
+  namespace: ""
+
+
+  # ⚠ IMPORTANT
+  # This strategy defines ALL generated constant names.
+  # Changing it later WILL rename constants and MAY break code.
+  #
+  # Strategies:
+  # - full   → table, table__column, fk__table__references
+  # - short  → table, tbl__column, fk__tbl__ref
+  # Separators and prefixes are fixed: __, fk__, on__, enum__
   naming:
-    strategy: full
-    overrides: {}
+    strategy: full          # full | FULL | short | SHORT
+    overrides: {}           # e.g. {users: usr, purchase_orders: po}
 ```
 
 This generates `src/Database/Tbl/Tbl.php`, containing `App\Database\Tbl\Tbl`.
