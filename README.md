@@ -258,9 +258,12 @@ Legacy `--generate` and `--check` flags remain available.
 
 ## Documentation
 
-The detailed guides are currently in Portuguese:
-
+- [Getting started](docs/getting-started.md)
 - [Configuration](docs/configuration.md)
+- [Naming strategies](docs/naming.md)
+- [Constants, aliases and JOINs](docs/usage.md)
+- [CLI reference](docs/cli.md)
+- [Independence](docs/independence.md)
 - [Migrating to v2](docs/migration-v2.md)
 - [Changelog](CHANGELOG.md)
 

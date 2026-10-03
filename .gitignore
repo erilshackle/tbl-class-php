@@ -30,6 +30,10 @@
 *.sqlite
 *.yml
 *.yaml
+!.github/workflows/*.yml
+/node_modules/
+/docs/.vitepress/cache/
+/docs/.vitepress/dist/
 /coverage/
 /.phpunit.cache/
 /phpunit.xml
