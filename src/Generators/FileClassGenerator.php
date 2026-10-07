@@ -143,7 +143,7 @@ HEADER;
 
                 $out .= "\n";
                 $out .= $this->php->constant($fkConst, $fk['from_column'],
-                    "FK: {$fk['from_table']}.{$fk['from_column']} -> {$fk['to_table']}.{$fk['to_column']}");
+                    "FK: `{$fk['from_table']}.{$fk['from_column']}` → `{$fk['to_table']}.{$fk['to_column']}`");
             }
         }
 

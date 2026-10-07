@@ -58,6 +58,29 @@ final class GenerationTest extends SqliteTestCase
         self::assertSame($original, file_get_contents($config->getTblFile()));
     }
 
+    public function testGeneratedConstantCommentsUseCompactFormat(): void
+    {
+        $this->createBlog();
+        $config = $this->generate();
+        $output = file_get_contents($config->getTblFile());
+
+        self::assertStringContainsString("    /** TABLE: `users` */     public const users = 'users';", $output);
+        self::assertStringContainsString("    /** FK: `posts.user_id` → `users.id` */     public const fk__posts__users = 'user_id';", $output);
+        self::assertStringContainsString("    /** JOIN ON: `posts` → `users` */     public const on__posts__users = 'posts.user_id = users.id';", $output);
+    }
+
+    public function testJoinCommentsQualifyColumnsForRepeatedTables(): void
+    {
+        $this->createBlog();
+        $this->pdo->exec('CREATE TABLE categories (id INTEGER PRIMARY KEY);
+            ALTER TABLE posts ADD COLUMN category_id INTEGER REFERENCES categories(id);');
+        $config = $this->generate();
+        $output = file_get_contents($config->getTblFile());
+
+        self::assertStringContainsString("JOIN ON: `posts.user_id` → `users`", $output);
+        self::assertStringContainsString("JOIN ON: `posts.category_id` → `categories`", $output);
+    }
+
     public function testUnusualSqlIdentifiersRoundTripThroughPhp(): void
     {
         $this->pdo->exec('CREATE TABLE "9 odd\'name*/" ("a\'b" TEXT); CREATE TABLE "class" (id INTEGER); CREATE TABLE audit__logs (id INTEGER)');

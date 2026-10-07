@@ -29,8 +29,8 @@ final class PhpOutput
             throw new RuntimeException("Constant collision '{$name}': {$this->constants[$name]} / {$description}. Adjust the schema or naming configuration.");
         }
         $this->constants[$name] = $description;
-        return '    /** ' . self::comment($description) . " */\n"
-            . "    public const {$name} = " . var_export($value, true) . ";\n";
+        return '    /** ' . self::comment($description) . ' */     '
+            . "public const {$name} = " . var_export($value, true) . ";\n";
     }
 
     public static function write(string $file, string $content): void

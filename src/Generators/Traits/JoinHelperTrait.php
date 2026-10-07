@@ -13,6 +13,13 @@ trait JoinHelperTrait
         $out = "\n";
         $out .= "    /** JOIN helpers (auto-generated from foreign keys) */\n";
 
+        $fromTableCounts = [];
+        $toTableCounts = [];
+        foreach ($foreignKeys as $fk) {
+            $fromTableCounts[$fk['from_table']] = ($fromTableCounts[$fk['from_table']] ?? 0) + 1;
+            $toTableCounts[$fk['to_table']] = ($toTableCounts[$fk['to_table']] ?? 0) + 1;
+        }
+
         foreach ($foreignKeys as $fk) {
 
             $constName = $this->naming->getOnJoinConstName(
@@ -22,8 +29,16 @@ trait JoinHelperTrait
 
             // $constName = "on__{$fkConst}";
             $expr      = "{$fk['from_table']}.{$fk['from_column']} = {$fk['to_table']}.{$fk['to_column']}";
+            $from      = $fk['from_table'];
+            $to        = $fk['to_table'];
+            if ($fromTableCounts[$fk['from_table']] > 1) {
+                $from .= '.' . $fk['from_column'];
+            }
+            if ($toTableCounts[$fk['to_table']] > 1) {
+                $to   .= '.' . $fk['to_column'];
+            }
 
-            $out .= $this->php->constant($constName, $expr, "JOIN ON: {$expr}");
+            $out .= $this->php->constant($constName, $expr, "JOIN ON: `{$from}` → `{$to}`");
         }
 
         $out .= $this->generateCallStatic();
